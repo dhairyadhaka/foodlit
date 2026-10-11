@@ -1,0 +1,66 @@
+# FoodLit (Phase 1 personal MVP)
+
+Photo → recipe → ingredients ordered at the cheapest price. Built from `FoodLit.md` (PRD v0.1).
+
+**UI — "Kitchen Cinema" (v14):** an editorial, film-like design system in `styles.css`. It pairs the Fraunces serif for display text with Geist for UI and Geist Mono for numbers, on a warm charcoal and ember palette with film grain and ambient light. Light and dark themes both follow `prefers-color-scheme`. Fonts load from Google Fonts. Offline, the system font stacks take over.
+
+**Motion — `motion.js` (no dependencies, so it still works offline):**
+- **View Transitions API:** screens push and pop, and a dish photo morphs from its card into the recipe hero and then into the basket thumbnail. When filters change, cards slide to their new positions and the active-filter pills glide between options. `motion.js` names only the elements that are on screen, so off-screen cards aren't captured.
+- **CSS scroll-driven animations:** cards reveal as they scroll in, the recipe hero has parallax, and the recipe top bar turns solid as you scroll. Browsers without support show the static layout.
+- **Web Animations API:** staggered entrances, a word-by-word blur reveal on titles, the camera shutter, confetti, and a once-per-session intro.
+- **Spring easing via `linear()` curves:** rolling-digit counters (`data-roll`), plus bars and checkboxes that animate from their previous value (`data-tween`).
+- **Desktop pointer effects:** cards tilt with a glare highlight, and buttons drift slightly toward the cursor.
+- **`prefers-reduced-motion`:** all of the above is reduced to instant state changes.
+
+Ideas and timing come from Emil Kowalski's animation guidance, Vaul (sheet curve), Magic UI (border beam, shimmer), React Bits (blur text), NumberFlow (rolling digits) and Codrops (grid reveals). They were re-implemented in vanilla JS and CSS, and no code was copied.
+
+`render(mode)` in `app.js` decides which motion plays:
+- `"nav"`: changes screen.
+- `"update"`: changes the same screen in place.
+- `"plain"`: re-renders while typing.
+- `"reveal"`: replays entrances when an async result arrives.
+
+Looping animations take their phase from a shared clock (`--now`), so re-rendering a screen doesn't restart them.
+
+**Branding:** the FoodLit mark is a bowl with a flame rising from it (food, lit), which also reads as a diya. It is defined once as `LOGO_MARK` in `app.js` (the flame flickers on hover and while a photo is being identified). The intro in `motion.js` shows the bowl rising and the flame catching. `icon.svg` is the source of truth for the favicon and home-screen icons. `icon-180.png`, `icon-512.png` and `favicon.ico` are rendered from it by headless Chrome, as full-bleed squares so iOS and Android can apply their own mask. The brand gradient (`--saffron` → `--ember`) is the one colour that breaks the neutral palette.
+
+**Dish photos:** real photos in `img/<dish-id>.jpg`, sourced from Wikimedia Commons and credited per-recipe in-app — see [CREDITS.md](CREDITS.md). Most are CC BY-SA / CC BY (attribution + share-alike **required** if you ever publish this); a few are CC0. If a photo is missing the card falls back to the dish emoji, so nothing renders broken.
+
+**Backup:** ⚙️ Settings and the History screen both have **Export / Import**. Export writes `foodlit-backup-YYYY-MM-DD.json` (older `snap-to-cook` backups still import) (meals + pantry, **never** the API key) — on iOS it goes through the share sheet so you can Save to Files. Import validates and sanitises the file, then offers **Merge** (dedupes meals by name+date+amount, so restoring an old backup can't wipe newer entries) or **Replace**. Pantry keys not in this build's catalog are skipped and reported.
+
+**Editing note:** asset URLs are versioned (`styles.css?v=5`). After changing `app.js`, `motion.js`, `data.js` or `styles.css`, bump the `?v=` number in `index.html` **and** the `CACHE` name in `sw.js`, or browsers and the installed PWA will serve the stale cached copy.
+
+**Run it:** any static server, e.g.
+
+```bash
+python3 -m http.server 4173 --directory snap-to-cook
+```
+
+then open http://localhost:4173 on your phone or browser (mobile-width works best).
+
+## What's implemented (PRD mapping)
+
+| PRD | Feature | How |
+|---|---|---|
+| P0-1 | Photo dish recognition | Claude vision (Haiku 4.5) called directly from the browser with your Anthropic API key (⚙️ Settings, stored in localStorage). Top-3 guesses matched to recipes by a specificity-ranked scorer (exact name/alias beats a loose substring), so "butter chicken" can't land on a chicken-steak recipe. Search fallback always shown — never a dead end. |
+| P0-2 | Recipe search & detail | Curated set of 33 dishes across 6 cuisines (name + aliases search), each with quantities, numbered steps, video link. |
+| — | Meal categories | "All day / 🌅 Breakfast (6) / ☀️ Lunch (22) / 🌙 Dinner (26)" tabs. A dish can belong to several (`meals: []` in `data.js`) — most Indian mains are lunch **and** dinner. Combines with cuisine and time; chip counts update to reflect the other active filters. Recipe screens show their meal slots. |
+| — | Cuisine categories | "Browse by cuisine" strip on home: All / 🇮🇳 Indian (21) / 🍝 Italian (3) / 🥩 Grills (2) / 🥢 Asian (3) / 🌮 Mexican (2) / 🍳 Continental (2). Combines with the time filter; typing a search resets to All so no match is hidden. Add a cuisine by appending to `CUISINES` in `data.js` and tagging recipes with its id. |
+| P0-3 | Ingredient → SKU mapping | Hand-curated catalog (70 SKUs) per PRD §8.3; unmapped items flagged amber (e.g. fresh coconut in Poha). |
+| P0-4 | Cross-app price comparison | Per-basket totals for Zepto / Blinkit / Instamart, cheapest highlighted, "last checked" timestamp; apps missing an item are excluded from the crown (edge #9 — e.g. paneer is out of stock on Instamart). |
+| P0-5 | One-tap handoff | Deep links to each app's search page per item; checkout finishes in the partner app (no public ordering API — PRD §8.1). |
+| P0-6 | Pantry exclusions | Untick items you have; totals recalc instantly. Pantry staples (salt, oil, spices) start unticked. |
+| P1 | Cook-vs-order cost | Recipe screen shows cook ~₹ (hand-estimated `cookCost` in `data.js` = ingredients the meal actually uses) vs delivered ₹. The full-pack basket total is shown separately — leftovers carry over. |
+| P1 | Meals counter / savings tally | "I cooked this" logs to history; home chip shows meals + ₹ kept from delivery. |
+| P1 | Time-to-cook filter | ≤20 / ≤30 / ≤45 min chips on home. |
+| P1 | Persistent pantry (🧺) | A real pantry manager: shows only what you own (with pack quantities), add items via catalog search suggestions (no free text) with a quantity stepper, adjust or remove with per-row −/+/🗑. Seeded with 9 staples, stored in localStorage (`[{key, qty}]`, migrates the old format). Pantry items start unticked in every basket and are badged in recipes. |
+| P1 | Serving-size scaling | Stepper (1–8 people) on the recipe screen. Ingredient quantities scale (fractions, ranges and units handled), costs scale, and the basket multiplies pack counts for scale-marked ingredients (`scale: true` in `data.js`, e.g. paneer, chicken, eggs, tomatoes, spinach). |
+| — | Calories | Hand-estimated `kcalPerServe` per recipe in `data.js`; recipe screen shows whole-dish kcal live-updating with the servings stepper; home cards show kcal/serve. |
+
+## Deliberately not built (PRD Non-Goals)
+
+Native checkout, accounts/auth, nutrition tracking, native apps, multi-user. Prices are a hand-refreshed snapshot (PRD §8.2 accepts semi-manual refresh for v1) — edit `data.js` and bump `PRICES_CHECKED` when you re-check them.
+
+## Phase 0 reminder (do this before trusting any metric)
+
+Write down your last 30 days of Swiggy/Zomato orders (count, spend, avg value) **now** — that's the baseline the savings tally is measured against. You can't recover it later.

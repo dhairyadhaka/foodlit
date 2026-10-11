@@ -1,0 +1,38 @@
+// Photo credits — dish photos from Wikimedia Commons.
+// Most are CC BY-SA / CC BY, which REQUIRE attribution; a few are CC0/public domain.
+// Shown in-app on the recipe screen and listed in CREDITS.md.
+// Dishes with no entry here fall back to their emoji.
+const PHOTO_CREDITS = {
+  "aglio-olio": { artist: "Bairuilong", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3ASpaghetti_aglio_e_olio_KB.jpg" },
+  "aloo-gobi": { artist: "Unknown", license: "CC BY-SA 2.0", page: "https://commons.wikimedia.org/wiki/File%3AAloo_gobi.jpg" },
+  "aloo-paratha": { artist: "Gannu03", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AAloo_Paratha_%2896238%29.jpg" },
+  "baingan-bharta": { artist: "Zeel Patel", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3ABaingan_Ka_Bharta.JPG" },
+  "bhindi-masala": { artist: "Monali.mishra", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3ABhindi_Masala.jpg" },
+  "butter-chicken": { artist: "stu_spivack", license: "CC BY-SA 2.0", page: "https://commons.wikimedia.org/wiki/File%3AChicken_makhani.jpg" },
+  "chicken-curry": { artist: "Kelly Sue", license: "CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File%3AChicken_Tikka_Masala_KellySue.JPG" },
+  "chicken-quesadilla": { artist: "Photograph by Mike Peel (www.mikepeel.net).", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AAt_Long_Island_2023_267.jpg" },
+  "chicken-steak": { artist: "Gerda Arendt", license: "CC0", page: "https://commons.wikimedia.org/wiki/File%3AGrilled_chicken_breast%2C_Santo_Domingo%2C_La_Palma.jpg" },
+  "chilli-paneer": { artist: "Marajozkee", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AChilly_Paneer_01.jpg" },
+  "chole-masala": { artist: "Parzeus", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AChana_Masala_in_Paul%C3%ADnia%2C_2023-10-16.jpg" },
+  "dal-makhani": { artist: "Charles Haynes", license: "CC BY-SA 2.0", page: "https://commons.wikimedia.org/wiki/File%3ADal_Makhani.jpg" },
+  "dal-tadka": { artist: "Wind Hashira", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3ADal_tadka_and_naan.jpg" },
+  "egg-bhurji": { artist: "Praveen from Bangalore, India", license: "CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File%3ASpicy_egg_bhurji_%40_the_eggfactory.jpg" },
+  "french-toast": { artist: "Ocdp", license: "CC0", page: "https://commons.wikimedia.org/wiki/File%3AFrench_toast_001.jpg" },
+  "grilled-fish": { artist: "DanaTentis", license: "CC0", page: "https://commons.wikimedia.org/wiki/File%3AGrilled_plated_salmon_fillet_%28cropped%29.jpg" },
+  "grilled-sandwich": { artist: "Maggie Hoffman", license: "CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File%3AGrilled_cheese_sandwich.jpg" },
+  "hakka-noodles": { artist: "SGUae", license: "CC BY 4.0", page: "https://commons.wikimedia.org/wiki/File%3ATasty_hakka_noodles_image.jpg" },
+  "kadhai-paneer": { artist: "Monali.mishra", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AKadai_Paneer_With_Gravy.jpg" },
+  "kadhi-pakora": { artist: "Ams4wiki", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AKadhi_Pakora.jpg" },
+  "matar-paneer": { artist: "Mdsmds0", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AMatar-Paneer.JPG" },
+  "mushroom-alfredo": { artist: "Geoffreyrabbit", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3APasta_with_cream_sauce_bacon_and_mushroom.jpg" },
+  "palak-paneer": { artist: "Lopanayak", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3APalakpaneer_Rayagada_Odisha_0009.jpg" },
+  "paneer-butter-masala": { artist: "Gannu03", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3APaneer_butter_masala_2.jpg" },
+  "paneer-tikka": { artist: "Sonja Pauen -Stanhopea", license: "CC BY 2.0 de", page: "https://commons.wikimedia.org/wiki/File%3APanir_Tikka_Indian_cheese_grilled.jpg" },
+  "poha": { artist: "rovingI", license: "CC BY 2.0", page: "https://commons.wikimedia.org/wiki/File%3APoha%2C_a_snack_made_of_flattened_rice.jpg" },
+  "rajma": { artist: "Gaurav Nemade", license: "CC BY-SA 2.0", page: "https://commons.wikimedia.org/wiki/File%3ARajma_Masala_%2832081557778%29.jpg" },
+  "rajma-burrito-bowl": { artist: "Missvain", license: "CC BY 4.0", page: "https://commons.wikimedia.org/wiki/File%3ASteak_burrito_bowl_at_La_Casa_Restaurant_in_Sonoma%2C_California_-_Sarah_Stierch_03.jpg" },
+  "thai-green-curry": { artist: "Takeaway", license: "CC BY-SA 3.0", page: "https://commons.wikimedia.org/wiki/File%3AThai_green_chicken_curry_and_roti.jpg" },
+  "tomato-penne": { artist: "pelican from Tokyo, Japan", license: "CC BY-SA 2.0", page: "https://commons.wikimedia.org/wiki/File%3APasta_with_tomato_sauce_%286178622998%29.jpg" },
+  "upma": { artist: "Intodustin", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AUpma_South_India.JPG" },
+  "veg-pulao": { artist: "Jagisnowjughead", license: "CC BY-SA 4.0", page: "https://commons.wikimedia.org/wiki/File%3AVEGETABLE_PULAO_~_An_Indian_cuisine_made_from_fried_rice_mixed_with_fried_vegetables.jpg" },
+};
