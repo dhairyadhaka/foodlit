@@ -137,6 +137,13 @@ const CATALOG = {
   "chilli-sauce":  { product: "Ching's Red Chilli Sauce",     size: "200 g",  prices: { zepto: 65,  blinkit: 62,  instamart: 68 }, estimated: true },
 };
 
+// Ordering in costs more than the menu price. ORDER_EXTRAS turns a dish's
+// menuPrice (typical Swiggy/Zomato price for its servings, food only) into
+// what you'd actually pay. Platform fee: ₹17.58 on both apps since Mar 2026;
+// delivery and packaging vary by restaurant and distance, so these are
+// typical amounts. Cost to cook is calculated from grocery prices (costs.js).
+const ORDER_EXTRAS = { gst: 0.05, platform: 18, delivery: 30, packaging: 20 };
+
 // Ingredient entry: { key, qty } — key must exist in CATALOG.
 // { name, qty } with no key = unmapped, flagged for manual handling (P0-3).
 // pantry:true = pre-unticked staple most kitchens already have (P0-6).
@@ -146,7 +153,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["paneer makhani", "butter paneer", "shahi paneer"],
     cuisine: "indian",
-    time: 40, serves: 2, deliveryPrice: 349, cookCost: 160, kcalPerServe: 450,
+    time: 40, serves: 2, menuPrice: 320, kcalPerServe: 450,
     video: "https://www.youtube.com/results?search_query=paneer+butter+masala+recipe",
     ingredients: [
       { key: "paneer", qty: "200 g", scale: true },
@@ -174,7 +181,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["yellow dal", "dal fry", "toor dal"],
     cuisine: "indian",
-    time: 35, serves: 2, deliveryPrice: 249, cookCost: 70, kcalPerServe: 220,
+    time: 35, serves: 2, menuPrice: 220, kcalPerServe: 220,
     video: "https://www.youtube.com/results?search_query=dal+tadka+recipe",
     ingredients: [
       { key: "toor-dal", qty: "1 cup" },
@@ -202,7 +209,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["chana masala", "chickpea curry", "punjabi chole"],
     cuisine: "indian",
-    time: 50, serves: 3, deliveryPrice: 279, cookCost: 90, kcalPerServe: 320,
+    time: 50, serves: 3, menuPrice: 300, kcalPerServe: 320,
     video: "https://www.youtube.com/results?search_query=chole+masala+recipe",
     ingredients: [
       { key: "kabuli-chana", qty: "1.5 cups (soaked overnight)" },
@@ -231,7 +238,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["potato cauliflower", "gobi aloo"],
     cuisine: "indian",
-    time: 30, serves: 2, deliveryPrice: 229, cookCost: 60, kcalPerServe: 180,
+    time: 30, serves: 2, menuPrice: 220, kcalPerServe: 180,
     video: "https://www.youtube.com/results?search_query=aloo+gobi+recipe",
     ingredients: [
       { key: "potato", qty: "2 medium" },
@@ -259,7 +266,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["spinach paneer", "saag paneer"],
     cuisine: "indian",
-    time: 40, serves: 2, deliveryPrice: 329, cookCost: 150, kcalPerServe: 380,
+    time: 40, serves: 2, menuPrice: 300, kcalPerServe: 380,
     video: "https://www.youtube.com/results?search_query=palak+paneer+recipe",
     ingredients: [
       { key: "spinach", qty: "2 bunches (500 g)", scale: true, packsFor: 2 },
@@ -286,7 +293,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["vegetable pulao", "pulav", "veg rice"],
     cuisine: "indian",
-    time: 30, serves: 2, deliveryPrice: 259, cookCost: 80, kcalPerServe: 350,
+    time: 30, serves: 2, menuPrice: 240, kcalPerServe: 350,
     video: "https://www.youtube.com/results?search_query=veg+pulao+recipe",
     ingredients: [
       { key: "basmati-rice", qty: "1 cup" },
@@ -311,7 +318,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["poha", "flattened rice", "pohe"],
     cuisine: "indian",
-    time: 20, serves: 2, deliveryPrice: 149, cookCost: 40, kcalPerServe: 270,
+    time: 20, serves: 2, menuPrice: 140, kcalPerServe: 270,
     video: "https://www.youtube.com/results?search_query=kanda+poha+recipe",
     ingredients: [
       { key: "poha", qty: "2 cups (thick)" },
@@ -342,7 +349,7 @@ const RECIPES = [
     meals: ["breakfast", "dinner"],
     aliases: ["anda bhurji", "scrambled eggs indian", "bhurji"],
     cuisine: "indian",
-    time: 15, serves: 2, deliveryPrice: 179, cookCost: 60, kcalPerServe: 300,
+    time: 15, serves: 2, menuPrice: 220, kcalPerServe: 300,
     video: "https://www.youtube.com/results?search_query=egg+bhurji+recipe",
     ingredients: [
       { key: "eggs", qty: "4", scale: true },
@@ -367,7 +374,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["rajma chawal", "kidney bean curry"],
     cuisine: "indian",
-    time: 60, serves: 3, deliveryPrice: 289, cookCost: 95, kcalPerServe: 340,
+    time: 60, serves: 3, menuPrice: 300, kcalPerServe: 340,
     video: "https://www.youtube.com/results?search_query=rajma+masala+recipe",
     ingredients: [
       { key: "rajma", qty: "1.5 cups (soaked overnight)" },
@@ -396,7 +403,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["chicken masala", "murgh curry", "chicken gravy"],
     cuisine: "indian",
-    time: 50, serves: 3, deliveryPrice: 399, cookCost: 180, kcalPerServe: 420,
+    time: 50, serves: 3, menuPrice: 420, kcalPerServe: 420,
     video: "https://www.youtube.com/results?search_query=home+style+chicken+curry+recipe",
     ingredients: [
       { key: "chicken", qty: "500 g curry cut", scale: true },
@@ -426,7 +433,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["upma", "sooji upma", "uppittu"],
     cuisine: "indian",
-    time: 20, serves: 2, deliveryPrice: 139, cookCost: 35, kcalPerServe: 250,
+    time: 20, serves: 2, menuPrice: 140, kcalPerServe: 250,
     video: "https://www.youtube.com/results?search_query=rava+upma+recipe",
     ingredients: [
       { key: "sooji", qty: "1 cup" },
@@ -454,7 +461,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["penne pasta", "pink sauce pasta", "tomato pasta", "pasta"],
     cuisine: "italian",
-    time: 25, serves: 2, deliveryPrice: 329, cookCost: 130, kcalPerServe: 520,
+    time: 25, serves: 2, menuPrice: 640, kcalPerServe: 520,
     video: "https://www.youtube.com/results?search_query=creamy+tomato+penne+pasta+recipe",
     ingredients: [
       { key: "pasta", qty: "200 g", scale: true },
@@ -482,7 +489,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["aglio olio", "garlic spaghetti", "spaghetti", "garlic oil pasta"],
     cuisine: "italian",
-    time: 20, serves: 2, deliveryPrice: 299, cookCost: 95, kcalPerServe: 430,
+    time: 20, serves: 2, menuPrice: 650, kcalPerServe: 430,
     video: "https://www.youtube.com/results?search_query=spaghetti+aglio+e+olio+recipe",
     ingredients: [
       { key: "spaghetti", qty: "200 g", scale: true },
@@ -506,7 +513,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["alfredo", "white sauce pasta", "creamy mushroom pasta"],
     cuisine: "italian",
-    time: 30, serves: 2, deliveryPrice: 359, cookCost: 165, kcalPerServe: 560,
+    time: 30, serves: 2, menuPrice: 720, kcalPerServe: 560,
     video: "https://www.youtube.com/results?search_query=mushroom+alfredo+pasta+recipe",
     ingredients: [
       { key: "pasta", qty: "200 g", scale: true },
@@ -535,7 +542,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["chicken steak", "steak", "grilled chicken breast", "pan seared chicken"],
     cuisine: "grills",
-    time: 30, serves: 2, deliveryPrice: 449, cookCost: 210, kcalPerServe: 390,
+    time: 30, serves: 2, menuPrice: 760, kcalPerServe: 390,
     video: "https://www.youtube.com/results?search_query=pan+seared+chicken+steak+herb+butter+recipe",
     ingredients: [
       { key: "chicken-breast", qty: "500 g (2 fillets)", scale: true },
@@ -561,7 +568,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["grilled fish", "basa", "lemon butter fish", "fish fillet"],
     cuisine: "grills",
-    time: 25, serves: 2, deliveryPrice: 479, cookCost: 230, kcalPerServe: 310,
+    time: 25, serves: 2, menuPrice: 840, kcalPerServe: 310,
     video: "https://www.youtube.com/results?search_query=grilled+basa+lemon+butter+recipe",
     ingredients: [
       { key: "fish", qty: "500 g fillets", scale: true },
@@ -589,7 +596,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["hakka noodles", "chowmein", "noodles", "chinese noodles"],
     cuisine: "asian",
-    time: 25, serves: 2, deliveryPrice: 259, cookCost: 110, kcalPerServe: 400,
+    time: 25, serves: 2, menuPrice: 260, kcalPerServe: 400,
     video: "https://www.youtube.com/results?search_query=veg+hakka+noodles+recipe",
     ingredients: [
       { key: "noodles", qty: "200 g", scale: true },
@@ -618,7 +625,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["chilli paneer", "paneer chilli", "indo chinese paneer"],
     cuisine: "asian",
-    time: 30, serves: 2, deliveryPrice: 339, cookCost: 170, kcalPerServe: 430,
+    time: 30, serves: 2, menuPrice: 300, kcalPerServe: 430,
     video: "https://www.youtube.com/results?search_query=chilli+paneer+dry+recipe",
     ingredients: [
       { key: "paneer", qty: "200 g", scale: true },
@@ -647,7 +654,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["thai curry", "green curry", "thai green curry"],
     cuisine: "asian",
-    time: 35, serves: 2, deliveryPrice: 399, cookCost: 195, kcalPerServe: 410,
+    time: 35, serves: 2, menuPrice: 480, kcalPerServe: 410,
     video: "https://www.youtube.com/results?search_query=thai+green+curry+recipe",
     ingredients: [
       { key: "coconut-milk", qty: "400 ml", scale: true, packsFor: 2 },
@@ -678,7 +685,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["quesadilla", "chicken wrap", "mexican wrap"],
     cuisine: "mexican",
-    time: 25, serves: 2, deliveryPrice: 369, cookCost: 185, kcalPerServe: 480,
+    time: 25, serves: 2, menuPrice: 560, kcalPerServe: 480,
     video: "https://www.youtube.com/results?search_query=chicken+quesadilla+recipe",
     ingredients: [
       { key: "tortilla", qty: "4 wraps", scale: true },
@@ -707,7 +714,7 @@ const RECIPES = [
     meals: ["lunch"],
     aliases: ["burrito bowl", "bean bowl", "mexican rice bowl", "burrito"],
     cuisine: "mexican",
-    time: 40, serves: 2, deliveryPrice: 349, cookCost: 150, kcalPerServe: 520,
+    time: 40, serves: 2, menuPrice: 560, kcalPerServe: 520,
     video: "https://www.youtube.com/results?search_query=burrito+bowl+recipe",
     ingredients: [
       { key: "rajma", qty: "1 cup (soaked overnight)" },
@@ -738,7 +745,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["french toast", "eggy bread", "bombay toast"],
     cuisine: "continental",
-    time: 15, serves: 2, deliveryPrice: 229, cookCost: 75, kcalPerServe: 340,
+    time: 15, serves: 2, menuPrice: 320, kcalPerServe: 340,
     video: "https://www.youtube.com/results?search_query=french+toast+recipe",
     ingredients: [
       { key: "bread", qty: "6 slices", scale: true },
@@ -762,7 +769,7 @@ const RECIPES = [
     meals: ["breakfast", "lunch"],
     aliases: ["grilled sandwich", "cheese sandwich", "toastie", "sandwich"],
     cuisine: "continental",
-    time: 15, serves: 2, deliveryPrice: 199, cookCost: 90, kcalPerServe: 380,
+    time: 15, serves: 2, menuPrice: 300, kcalPerServe: 380,
     video: "https://www.youtube.com/results?search_query=veg+grilled+cheese+sandwich+recipe",
     ingredients: [
       { key: "bread", qty: "6 slices", scale: true },
@@ -790,7 +797,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["murgh makhani", "butter chicken", "makhani chicken", "chicken makhani"],
     cuisine: "indian",
-    time: 45, serves: 3, deliveryPrice: 449, cookCost: 230, kcalPerServe: 490,
+    time: 45, serves: 3, menuPrice: 450, kcalPerServe: 490,
     video: "https://www.youtube.com/results?search_query=butter+chicken+murgh+makhani+recipe",
     ingredients: [
       { key: "chicken", qty: "600 g boneless", scale: true },
@@ -820,7 +827,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["dal makhani", "makhani dal", "black dal", "kaali dal"],
     cuisine: "indian",
-    time: 75, serves: 3, deliveryPrice: 299, cookCost: 100, kcalPerServe: 330,
+    time: 75, serves: 3, menuPrice: 300, kcalPerServe: 330,
     video: "https://www.youtube.com/results?search_query=dal+makhani+restaurant+style+recipe",
     ingredients: [
       { key: "urad-whole", qty: "1 cup (soaked overnight)" },
@@ -847,7 +854,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["kadhai paneer", "karahi paneer", "kadai paneer"],
     cuisine: "indian",
-    time: 35, serves: 2, deliveryPrice: 339, cookCost: 175, kcalPerServe: 400,
+    time: 35, serves: 2, menuPrice: 310, kcalPerServe: 400,
     video: "https://www.youtube.com/results?search_query=kadhai+paneer+recipe",
     ingredients: [
       { key: "paneer", qty: "250 g", scale: true },
@@ -877,7 +884,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["matar paneer", "mutter paneer", "peas paneer"],
     cuisine: "indian",
-    time: 35, serves: 2, deliveryPrice: 319, cookCost: 165, kcalPerServe: 380,
+    time: 35, serves: 2, menuPrice: 280, kcalPerServe: 380,
     video: "https://www.youtube.com/results?search_query=matar+paneer+recipe",
     ingredients: [
       { key: "paneer", qty: "200 g", scale: true },
@@ -908,7 +915,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["malai kofta", "kofta curry", "paneer kofta"],
     cuisine: "indian",
-    time: 55, serves: 3, deliveryPrice: 369, cookCost: 200, kcalPerServe: 470,
+    time: 55, serves: 3, menuPrice: 340, kcalPerServe: 470,
     video: "https://www.youtube.com/results?search_query=malai+kofta+recipe",
     ingredients: [
       { key: "paneer", qty: "200 g", scale: true },
@@ -938,7 +945,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["baingan bharta", "brinjal bharta", "smoked eggplant", "bharta"],
     cuisine: "indian",
-    time: 40, serves: 2, deliveryPrice: 249, cookCost: 90, kcalPerServe: 210,
+    time: 40, serves: 2, menuPrice: 230, kcalPerServe: 210,
     video: "https://www.youtube.com/results?search_query=baingan+bharta+recipe",
     ingredients: [
       { key: "brinjal", qty: "1 large (500 g)", scale: true },
@@ -967,7 +974,7 @@ const RECIPES = [
     meals: ["lunch"],
     aliases: ["bhindi masala", "okra masala", "lady finger sabzi", "bhindi"],
     cuisine: "indian",
-    time: 30, serves: 2, deliveryPrice: 239, cookCost: 85, kcalPerServe: 190,
+    time: 30, serves: 2, menuPrice: 230, kcalPerServe: 190,
     video: "https://www.youtube.com/results?search_query=bhindi+masala+recipe",
     ingredients: [
       { key: "bhindi", qty: "400 g", scale: true },
@@ -994,7 +1001,7 @@ const RECIPES = [
     meals: ["breakfast", "dinner"],
     aliases: ["aloo paratha", "potato paratha", "paratha", "alu paratha"],
     cuisine: "indian",
-    time: 40, serves: 2, deliveryPrice: 199, cookCost: 75, kcalPerServe: 330,
+    time: 40, serves: 2, menuPrice: 180, kcalPerServe: 330,
     video: "https://www.youtube.com/results?search_query=aloo+paratha+recipe",
     ingredients: [
       { key: "atta", qty: "2 cups", scale: true },
@@ -1021,7 +1028,7 @@ const RECIPES = [
     meals: ["lunch"],
     aliases: ["kadhi pakora", "kadhi", "besan kadhi", "punjabi kadhi"],
     cuisine: "indian",
-    time: 45, serves: 3, deliveryPrice: 229, cookCost: 80, kcalPerServe: 250,
+    time: 45, serves: 3, menuPrice: 240, kcalPerServe: 250,
     video: "https://www.youtube.com/results?search_query=punjabi+kadhi+pakora+recipe",
     ingredients: [
       { key: "besan", qty: "1 cup" },
@@ -1050,7 +1057,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["paneer tikka", "tandoori paneer", "grilled paneer", "tikka"],
     cuisine: "indian",
-    time: 40, serves: 2, deliveryPrice: 349, cookCost: 185, kcalPerServe: 350,
+    time: 40, serves: 2, menuPrice: 320, kcalPerServe: 350,
     video: "https://www.youtube.com/results?search_query=paneer+tikka+recipe+tawa",
     ingredients: [
       { key: "paneer", qty: "250 g", scale: true },
@@ -1081,7 +1088,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["chicken salad", "grilled chicken salad", "protein salad"],
     cuisine: "salads",
-    time: 25, serves: 2, deliveryPrice: 399, cookCost: 175, kcalPerServe: 340,
+    time: 25, serves: 2, menuPrice: 620, kcalPerServe: 340,
     video: "https://www.youtube.com/results?search_query=grilled+chicken+salad+recipe",
     ingredients: [
       { key: "chicken-breast", qty: "300 g", scale: true },
@@ -1108,7 +1115,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["saute veggies", "sauteed vegetables", "stir fried veggies", "garlic vegetables", "saute vegetables"],
     cuisine: "salads",
-    time: 20, serves: 2, deliveryPrice: 279, cookCost: 120, kcalPerServe: 180,
+    time: 20, serves: 2, menuPrice: 440, kcalPerServe: 180,
     video: "https://www.youtube.com/results?search_query=sauteed+vegetables+garlic+butter+recipe",
     ingredients: [
       { key: "broccoli", qty: "1 head" },
@@ -1135,7 +1142,7 @@ const RECIPES = [
     meals: ["lunch"],
     aliases: ["chana salad", "chickpea salad", "kabuli chana salad"],
     cuisine: "salads",
-    time: 15, serves: 2, deliveryPrice: 249, cookCost: 70, kcalPerServe: 290,
+    time: 15, serves: 2, menuPrice: 380, kcalPerServe: 290,
     video: "https://www.youtube.com/results?search_query=chickpea+salad+indian+style",
     ingredients: [
       { key: "kabuli-chana", qty: "1 cup (soaked & boiled)", scale: true },
@@ -1159,7 +1166,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["quinoa bowl", "quinoa salad", "buddha bowl"],
     cuisine: "salads",
-    time: 25, serves: 2, deliveryPrice: 379, cookCost: 150, kcalPerServe: 380,
+    time: 25, serves: 2, menuPrice: 620, kcalPerServe: 380,
     video: "https://www.youtube.com/results?search_query=quinoa+vegetable+bowl+recipe",
     ingredients: [
       { key: "quinoa", qty: "3/4 cup", scale: true },
@@ -1184,7 +1191,7 @@ const RECIPES = [
     meals: ["breakfast", "lunch"],
     aliases: ["sprouts salad", "sprouts chaat", "moong salad"],
     cuisine: "salads",
-    time: 10, serves: 2, deliveryPrice: 179, cookCost: 55, kcalPerServe: 160,
+    time: 10, serves: 2, menuPrice: 280, kcalPerServe: 160,
     video: "https://www.youtube.com/results?search_query=moong+sprouts+salad+recipe",
     ingredients: [
       { key: "moong-sprouts", qty: "200 g", scale: true },
@@ -1207,7 +1214,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["corn salad", "corn chaat", "sweet corn chaat"],
     cuisine: "salads",
-    time: 10, serves: 2, deliveryPrice: 199, cookCost: 65, kcalPerServe: 210,
+    time: 10, serves: 2, menuPrice: 280, kcalPerServe: 210,
     video: "https://www.youtube.com/results?search_query=sweet+corn+salad+recipe",
     ingredients: [
       { key: "sweet-corn", qty: "1.5 cups", scale: true },
@@ -1232,7 +1239,7 @@ const RECIPES = [
     meals: ["breakfast", "dinner"],
     aliases: ["omelette", "omelet", "masala omelet", "egg omelette"],
     cuisine: "indian",
-    time: 10, serves: 1, deliveryPrice: 149, cookCost: 40, kcalPerServe: 260,
+    time: 10, serves: 1, menuPrice: 110, kcalPerServe: 260,
     video: "https://www.youtube.com/results?search_query=masala+omelette+recipe",
     ingredients: [
       { key: "eggs", qty: "3", scale: true },
@@ -1256,7 +1263,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["oats", "overnight oats", "banana oats"],
     cuisine: "continental",
-    time: 5, serves: 1, deliveryPrice: 199, cookCost: 45, kcalPerServe: 340,
+    time: 5, serves: 1, menuPrice: 220, kcalPerServe: 340,
     video: "https://www.youtube.com/results?search_query=overnight+oats+recipe",
     ingredients: [
       { key: "oats", qty: "1/2 cup", scale: true },
@@ -1277,7 +1284,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["savory oats", "oats upma", "vegetable oats"],
     cuisine: "indian",
-    time: 15, serves: 2, deliveryPrice: 179, cookCost: 50, kcalPerServe: 230,
+    time: 15, serves: 2, menuPrice: 220, kcalPerServe: 230,
     video: "https://www.youtube.com/results?search_query=masala+oats+recipe",
     ingredients: [
       { key: "oats", qty: "1 cup", scale: true },
@@ -1302,7 +1309,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["chilla", "besan cheela", "gram flour pancake"],
     cuisine: "indian",
-    time: 15, serves: 2, deliveryPrice: 179, cookCost: 40, kcalPerServe: 240,
+    time: 15, serves: 2, menuPrice: 220, kcalPerServe: 240,
     video: "https://www.youtube.com/results?search_query=besan+chilla+recipe",
     ingredients: [
       { key: "besan", qty: "1 cup", scale: true },
@@ -1326,7 +1333,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["moong chilla", "dal cheela", "lentil pancake"],
     cuisine: "indian",
-    time: 20, serves: 2, deliveryPrice: 199, cookCost: 45, kcalPerServe: 220,
+    time: 20, serves: 2, menuPrice: 220, kcalPerServe: 220,
     video: "https://www.youtube.com/results?search_query=moong+dal+chilla+recipe",
     ingredients: [
       { key: "moong-dal", qty: "1 cup (soaked 4 hrs)", scale: true },
@@ -1350,7 +1357,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["pancakes", "banana pancake", "fluffy pancakes"],
     cuisine: "continental",
-    time: 20, serves: 2, deliveryPrice: 279, cookCost: 70, kcalPerServe: 380,
+    time: 20, serves: 2, menuPrice: 420, kcalPerServe: 380,
     video: "https://www.youtube.com/results?search_query=banana+pancakes+recipe",
     ingredients: [
       { key: "maida", qty: "1 cup", scale: true },
@@ -1375,7 +1382,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["scrambled eggs", "eggs on toast", "creamy eggs"],
     cuisine: "continental",
-    time: 10, serves: 1, deliveryPrice: 199, cookCost: 50, kcalPerServe: 360,
+    time: 10, serves: 1, menuPrice: 220, kcalPerServe: 360,
     video: "https://www.youtube.com/results?search_query=creamy+scrambled+eggs+recipe",
     ingredients: [
       { key: "eggs", qty: "3", scale: true },
@@ -1397,7 +1404,7 @@ const RECIPES = [
     meals: ["breakfast"],
     aliases: ["peanut butter toast", "pb banana toast", "banana toast"],
     cuisine: "continental",
-    time: 5, serves: 1, deliveryPrice: 179, cookCost: 40, kcalPerServe: 330,
+    time: 5, serves: 1, menuPrice: 180, kcalPerServe: 330,
     video: "https://www.youtube.com/results?search_query=peanut+butter+banana+toast",
     ingredients: [
       { key: "bread", qty: "2 slices", scale: true },
@@ -1417,7 +1424,7 @@ const RECIPES = [
     meals: ["breakfast", "dinner"],
     aliases: ["paneer scramble", "paneer bhurji", "scrambled paneer"],
     cuisine: "indian",
-    time: 15, serves: 2, deliveryPrice: 279, cookCost: 125, kcalPerServe: 320,
+    time: 15, serves: 2, menuPrice: 280, kcalPerServe: 320,
     video: "https://www.youtube.com/results?search_query=paneer+bhurji+recipe",
     ingredients: [
       { key: "paneer", qty: "200 g", scale: true },
@@ -1444,7 +1451,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["cumin rice", "jeera rice"],
     cuisine: "indian",
-    time: 25, serves: 2, deliveryPrice: 199, cookCost: 50, kcalPerServe: 300,
+    time: 25, serves: 2, menuPrice: 180, kcalPerServe: 300,
     video: "https://www.youtube.com/results?search_query=jeera+rice+recipe",
     ingredients: [
       { key: "basmati-rice", qty: "1 cup", scale: true },
@@ -1465,7 +1472,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["red lentil dal", "masoor", "lal masoor dal"],
     cuisine: "indian",
-    time: 25, serves: 3, deliveryPrice: 229, cookCost: 55, kcalPerServe: 210,
+    time: 25, serves: 3, menuPrice: 240, kcalPerServe: 210,
     video: "https://www.youtube.com/results?search_query=masoor+dal+recipe",
     ingredients: [
       { key: "masoor-dal", qty: "1 cup", scale: true },
@@ -1490,7 +1497,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["anda curry", "egg masala", "boiled egg curry"],
     cuisine: "indian",
-    time: 30, serves: 2, deliveryPrice: 259, cookCost: 75, kcalPerServe: 320,
+    time: 30, serves: 2, menuPrice: 240, kcalPerServe: 320,
     video: "https://www.youtube.com/results?search_query=egg+curry+recipe",
     ingredients: [
       { key: "eggs", qty: "4", scale: true },
@@ -1517,7 +1524,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["mixed vegetables", "mix veg", "mix vegetable curry"],
     cuisine: "indian",
-    time: 30, serves: 3, deliveryPrice: 269, cookCost: 85, kcalPerServe: 190,
+    time: 30, serves: 3, menuPrice: 260, kcalPerServe: 190,
     video: "https://www.youtube.com/results?search_query=mix+veg+sabzi+recipe",
     ingredients: [
       { key: "potato", qty: "1 medium" },
@@ -1545,7 +1552,7 @@ const RECIPES = [
     meals: ["lunch"],
     aliases: ["chitranna", "nimbu rice", "lemon rice"],
     cuisine: "indian",
-    time: 15, serves: 2, deliveryPrice: 199, cookCost: 45, kcalPerServe: 320,
+    time: 15, serves: 2, menuPrice: 160, kcalPerServe: 320,
     video: "https://www.youtube.com/results?search_query=lemon+rice+recipe",
     ingredients: [
       { key: "basmati-rice", qty: "1 cup cooked", scale: true },
@@ -1570,7 +1577,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["biryani", "chicken dum biryani", "chicken biriyani"],
     cuisine: "indian",
-    time: 75, serves: 3, deliveryPrice: 499, cookCost: 230, kcalPerServe: 560,
+    time: 75, serves: 3, menuPrice: 600, kcalPerServe: 560,
     video: "https://www.youtube.com/results?search_query=easy+chicken+biryani+recipe",
     ingredients: [
       { key: "chicken", qty: "500 g", scale: true },
@@ -1599,7 +1606,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["mushroom curry", "mushroom masala"],
     cuisine: "indian",
-    time: 25, serves: 2, deliveryPrice: 289, cookCost: 115, kcalPerServe: 210,
+    time: 25, serves: 2, menuPrice: 280, kcalPerServe: 210,
     video: "https://www.youtube.com/results?search_query=mushroom+masala+recipe",
     ingredients: [
       { key: "mushroom", qty: "200 g", scale: true },
@@ -1627,7 +1634,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["arrabbiata", "spicy tomato pasta", "red sauce pasta"],
     cuisine: "italian",
-    time: 25, serves: 2, deliveryPrice: 319, cookCost: 115, kcalPerServe: 460,
+    time: 25, serves: 2, menuPrice: 600, kcalPerServe: 460,
     video: "https://www.youtube.com/results?search_query=penne+arrabbiata+recipe",
     ingredients: [
       { key: "pasta", qty: "200 g", scale: true },
@@ -1651,7 +1658,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["minestrone", "italian vegetable soup", "veg soup"],
     cuisine: "italian",
-    time: 35, serves: 3, deliveryPrice: 269, cookCost: 95, kcalPerServe: 220,
+    time: 35, serves: 3, menuPrice: 540, kcalPerServe: 220,
     video: "https://www.youtube.com/results?search_query=minestrone+soup+recipe",
     ingredients: [
       { key: "macaroni", qty: "1/2 cup" },
@@ -1680,7 +1687,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["tandoori", "tandoori murgh", "oven tandoori chicken"],
     cuisine: "grills",
-    time: 50, serves: 3, deliveryPrice: 449, cookCost: 205, kcalPerServe: 360,
+    time: 50, serves: 3, menuPrice: 550, kcalPerServe: 360,
     video: "https://www.youtube.com/results?search_query=tandoori+chicken+oven+or+pan+recipe",
     ingredients: [
       { key: "chicken", qty: "750 g (legs)", scale: true },
@@ -1705,7 +1712,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["chicken kebab", "chicken skewers", "shish kebab", "chicken tikka"],
     cuisine: "grills",
-    time: 35, serves: 2, deliveryPrice: 399, cookCost: 190, kcalPerServe: 340,
+    time: 35, serves: 2, menuPrice: 380, kcalPerServe: 340,
     video: "https://www.youtube.com/results?search_query=grilled+chicken+skewers+recipe",
     ingredients: [
       { key: "chicken-breast", qty: "400 g", scale: true },
@@ -1731,7 +1738,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["veg kebab", "vegetable skewers", "grilled vegetables"],
     cuisine: "grills",
-    time: 30, serves: 2, deliveryPrice: 299, cookCost: 140, kcalPerServe: 230,
+    time: 30, serves: 2, menuPrice: 350, kcalPerServe: 230,
     video: "https://www.youtube.com/results?search_query=grilled+vegetable+skewers",
     ingredients: [
       { key: "paneer", qty: "100 g" },
@@ -1758,7 +1765,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["fried rice", "egg rice", "chinese fried rice"],
     cuisine: "asian",
-    time: 20, serves: 2, deliveryPrice: 279, cookCost: 75, kcalPerServe: 430,
+    time: 20, serves: 2, menuPrice: 240, kcalPerServe: 430,
     video: "https://www.youtube.com/results?search_query=egg+fried+rice+recipe",
     ingredients: [
       { key: "basmati-rice", qty: "2 cups cooked", scale: true },
@@ -1783,7 +1790,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["chilli chicken dry", "indo chinese chicken", "chili chicken"],
     cuisine: "asian",
-    time: 35, serves: 2, deliveryPrice: 379, cookCost: 175, kcalPerServe: 420,
+    time: 35, serves: 2, menuPrice: 320, kcalPerServe: 420,
     video: "https://www.youtube.com/results?search_query=chilli+chicken+recipe",
     ingredients: [
       { key: "chicken-breast", qty: "400 g", scale: true },
@@ -1812,7 +1819,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["tofu stir fry", "tofu vegetables", "stir fry tofu"],
     cuisine: "asian",
-    time: 20, serves: 2, deliveryPrice: 329, cookCost: 140, kcalPerServe: 290,
+    time: 20, serves: 2, menuPrice: 360, kcalPerServe: 290,
     video: "https://www.youtube.com/results?search_query=tofu+vegetable+stir+fry",
     ingredients: [
       { key: "tofu", qty: "200 g", scale: true },
@@ -1839,7 +1846,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["fajitas", "chicken fajita wraps", "fajita"],
     cuisine: "mexican",
-    time: 30, serves: 2, deliveryPrice: 429, cookCost: 210, kcalPerServe: 480,
+    time: 30, serves: 2, menuPrice: 600, kcalPerServe: 480,
     video: "https://www.youtube.com/results?search_query=chicken+fajitas+recipe",
     ingredients: [
       { key: "chicken-breast", qty: "350 g", scale: true },
@@ -1865,7 +1872,7 @@ const RECIPES = [
     meals: ["lunch"],
     aliases: ["mexican rice", "spanish rice", "tomato rice"],
     cuisine: "mexican",
-    time: 30, serves: 2, deliveryPrice: 249, cookCost: 75, kcalPerServe: 360,
+    time: 30, serves: 2, menuPrice: 300, kcalPerServe: 360,
     video: "https://www.youtube.com/results?search_query=mexican+rice+recipe",
     ingredients: [
       { key: "basmati-rice", qty: "1 cup", scale: true },
@@ -1891,7 +1898,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["veg quesadilla", "bean quesadilla", "cheese quesadilla"],
     cuisine: "mexican",
-    time: 20, serves: 2, deliveryPrice: 329, cookCost: 140, kcalPerServe: 450,
+    time: 20, serves: 2, menuPrice: 480, kcalPerServe: 450,
     video: "https://www.youtube.com/results?search_query=bean+and+cheese+quesadilla",
     ingredients: [
       { key: "tortilla", qty: "4", scale: true },
@@ -1918,7 +1925,7 @@ const RECIPES = [
     meals: ["dinner"],
     aliases: ["mushroom soup", "cream of mushroom"],
     cuisine: "continental",
-    time: 25, serves: 2, deliveryPrice: 249, cookCost: 110, kcalPerServe: 240,
+    time: 25, serves: 2, menuPrice: 360, kcalPerServe: 240,
     video: "https://www.youtube.com/results?search_query=creamy+mushroom+soup+recipe",
     ingredients: [
       { key: "mushroom", qty: "200 g", scale: true },
@@ -1943,7 +1950,7 @@ const RECIPES = [
     meals: ["lunch", "dinner"],
     aliases: ["mac n cheese", "macaroni cheese", "mac and cheese"],
     cuisine: "continental",
-    time: 25, serves: 2, deliveryPrice: 329, cookCost: 125, kcalPerServe: 560,
+    time: 25, serves: 2, menuPrice: 780, kcalPerServe: 560,
     video: "https://www.youtube.com/results?search_query=stovetop+mac+and+cheese+recipe",
     ingredients: [
       { key: "macaroni", qty: "200 g", scale: true },
@@ -1967,7 +1974,7 @@ const RECIPES = [
     meals: ["lunch"],
     aliases: ["chicken wrap", "chicken roll", "grilled chicken roll"],
     cuisine: "continental",
-    time: 25, serves: 2, deliveryPrice: 299, cookCost: 145, kcalPerServe: 430,
+    time: 25, serves: 2, menuPrice: 420, kcalPerServe: 430,
     video: "https://www.youtube.com/results?search_query=grilled+chicken+wrap+recipe",
     ingredients: [
       { key: "chicken-breast", qty: "250 g", scale: true },

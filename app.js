@@ -53,6 +53,7 @@ const store = {
       meals: this.meals,
       pantry: this.pantry,
       prices: priceStore.all,
+      orderPrices: orderStore.all,
     };
   },
 };
@@ -97,7 +98,14 @@ function parseBackup(text) {
       prices[k] = clean;
     }
   }
-  return { meals, pantry, skipped, prices };
+  // Your usual order prices: known dishes only, whole rupees.
+  const orderPrices = {};
+  if (d.orderPrices && typeof d.orderPrices === "object") {
+    for (const [id, v] of Object.entries(d.orderPrices)) {
+      if (recipeById(id) && Number.isFinite(+v) && +v > 0 && +v < 10000) orderPrices[id] = Math.round(+v);
+    }
+  }
+  return { meals, pantry, skipped, prices, orderPrices };
 }
 
 const state = {
@@ -169,6 +177,31 @@ function priceNote(keys) {
   return `Not live prices${when ? ` — ${when}` : ""}. Your real total shows in the app.` +
     (est ? ` <b>${plural(est, "price")} ${est === 1 ? "is a rough estimate" : "are rough estimates"}.</b>` : "");
 }
+
+// ---------- cook vs order ----------
+
+// Cost to cook comes from grocery prices (costs.js), so it follows any price
+// you update. Order price = the dish's typical menu price + 5% food tax +
+// platform, delivery and packaging fees, unless you've set what you usually
+// pay for it, which then wins. Both scale with the number of people.
+const orderStore = {
+  get all() { try { return JSON.parse(localStorage.getItem("stc_order") || "{}"); } catch { return {}; } },
+  save(all) { localStorage.setItem("stc_order", JSON.stringify(all)); },
+};
+
+const cookCostOf = (r, f = 1) => Math.round(Costs.cookCost(r) * f);
+
+function orderBreakdown(r, f = 1) {
+  const food = r.menuPrice * f;
+  const extras = food * ORDER_EXTRAS.gst + ORDER_EXTRAS.platform + ORDER_EXTRAS.delivery + ORDER_EXTRAS.packaging;
+  return { food: Math.round(food), extras: Math.round(extras), total: Math.round(food + extras) };
+}
+const myOrderPrice = r => orderStore.all[r.id] ?? null;
+const orderPriceOf = (r, f = 1) => {
+  const mine = myOrderPrice(r);
+  return mine != null ? Math.round(mine * f) : orderBreakdown(r, f).total;
+};
+const savingOf = (r, f = 1) => Math.max(0, orderPriceOf(r, f) - cookCostOf(r, f));
 
 // ---------- helpers ----------
 
@@ -598,7 +631,7 @@ function homeView() {
               ${i === 0 ? `<span class="pick-badge">Best match</span>` : ""}
               <span class="pick-body">
                 <span class="pick-name">${esc(p.r.name)}</span>
-                <span class="pick-meta">${ic("clock")}${p.r.time} min<span class="dot">·</span><span class="save">${fmt(p.r.deliveryPrice - p.r.cookCost)} saved</span></span>
+                <span class="pick-meta">${ic("clock")}${p.r.time} min<span class="dot">·</span><span class="save">${fmt(savingOf(p.r))} saved</span></span>
                 <span class="have ${p.missing === 0 ? "have--all" : ""}">
                   <span class="have-bar"><span style="--v:${p.total ? (p.have / p.total).toFixed(3) : 0}"></span></span>
                   <span class="have-txt">${haveLine(p)}</span>
@@ -745,9 +778,11 @@ function recipeView() {
   const r = recipeById(state.recipeId);
   const n = servingsFor(r);
   const f = factorFor(r);
-  const cook = Math.round(r.cookCost * f);
-  const order = Math.round(r.deliveryPrice * f);
+  const cook = cookCostOf(r, f);
+  const order = orderPriceOf(r, f);
   const saving = Math.max(0, order - cook);
+  const mine = myOrderPrice(r);
+  const ob = orderBreakdown(r, f);
   const totalKcal = Math.round(r.kcalPerServe * n);
   const meals = r.meals.map(m => (MEALS.find(x => x.id === m) || { name: m }).name).join(" · ");
   const people = n === 1 ? "person" : "people";
@@ -791,15 +826,31 @@ function recipeView() {
             </div>
             <div class="bar-row">
               <span class="bar-lbl">Cook it</span>
-              <span class="bar"><span class="bar-fill cook" data-tween="bar-cook" style="--v:${order ? (cook / order).toFixed(3) : 0}"></span></span>
+              <span class="bar"><span class="bar-fill cook" data-tween="bar-cook" style="--v:${(cook / Math.max(cook, order, 1)).toFixed(3)}"></span></span>
               <span class="bar-amt">~₹<span data-roll="cook">${cook}</span></span>
             </div>
             <div class="bar-row">
               <span class="bar-lbl">Order it</span>
-              <span class="bar"><span class="bar-fill order" data-tween="bar-order" style="--v:1"></span></span>
+              <span class="bar"><span class="bar-fill order" data-tween="bar-order" style="--v:${(order / Math.max(cook, order, 1)).toFixed(3)}"></span></span>
               <span class="bar-amt">₹<span data-roll="order">${order}</span></span>
             </div>
-            <p class="fine">For ${n} ${people}. Cook cost = ingredients this meal actually uses. The basket buys full packs — leftovers carry into your next meals.</p>
+            <div class="order-detail">
+              <span>${mine != null
+                ? `Order price is <b>your usual price</b> for this dish.`
+                : `Typical menu ${fmt(ob.food)} + ~${fmt(ob.extras)} tax and fees (platform, delivery, packaging).`}</span>
+              ${state.orderEditing === r.id ? "" : `<button class="link-inline" data-order-edit>${mine != null ? "Change" : "Set my usual price"}</button>`}
+            </div>
+            ${state.orderEditing === r.id ? `
+            <div class="order-edit">
+              <p class="fine left">What do you usually pay for ${esc(r.name)} for ${plural(r.serves, "person", "people")}, including fees?</p>
+              <div class="order-edit-row">
+                <label class="p-input">₹<input id="order-input" type="number" inputmode="numeric" min="1" max="9999" value="${mine ?? orderBreakdown(r).total}" aria-label="Your usual price" /></label>
+                <button class="btn btn-primary" data-order-save>Save</button>
+                <button class="btn btn-ghost" data-order-cancel>Cancel</button>
+              </div>
+              ${mine != null ? `<button class="link-inline" data-order-reset>Go back to the typical price</button>` : ""}
+            </div>` : ""}
+            <p class="fine">For ${n} ${people}. Cook cost is worked out from current grocery prices for the amounts this dish uses; leftover packs carry into your next meals.</p>
           </section>
 
           <a class="video" href="${r.video}" target="_blank" rel="noopener" data-enter>
@@ -965,7 +1016,7 @@ function basketView() {
   const unmappedCount = items.filter(it => !it.mapped && it.ticked).length;
   const sel = state.selectedApp && cmp.perApp[state.selectedApp] ? state.selectedApp : cmp.cheapest;
   const selApp = sel ? APPS[sel] : null;
-  const saving = Math.max(0, Math.round((r.deliveryPrice - r.cookCost) * f));
+  const saving = savingOf(r, f);
   const maxTotal = Math.max(1, ...Object.values(cmp.perApp).map(d => d.total));
 
   return `
@@ -1039,7 +1090,7 @@ function basketView() {
         <span class="savings-ic">${ic("spark")}</span>
         <div>
           <div class="savings-amt">₹<span data-roll="b-save">${saving}</span> <span>stays in your pocket</span></div>
-          <div class="fine left">~${fmt(r.cookCost * f)} of ingredients used vs ${fmt(r.deliveryPrice * f)} delivered, for ${n} ${n === 1 ? "person" : "people"}</div>
+          <div class="fine left">~${fmt(cookCostOf(r, f))} of ingredients used vs ${fmt(orderPriceOf(r, f))} to order in, for ${n} ${n === 1 ? "person" : "people"}</div>
         </div>
       </section>` : ""}
       </div>
@@ -1324,6 +1375,7 @@ function confirmImport(parsed) {
     }
     priceStore.save(prices);
     applyPrices();
+    orderStore.save({ ...parsed.orderPrices, ...orderStore.all });
     close();
     state.ticks = {};
     go("history");
@@ -1335,6 +1387,7 @@ function confirmImport(parsed) {
     store.savePantry(parsed.pantry);
     priceStore.save(parsed.prices || {});
     applyPrices();
+    orderStore.save(parsed.orderPrices || {});
     close();
     state.ticks = {};
     go("history");
@@ -1672,6 +1725,35 @@ function bind() {
     toast(`${CATALOG[key].product} — prices saved`);
   });
 
+  // my usual order price (recipe screen)
+  $app.querySelectorAll("[data-order-edit]").forEach(b => b.onclick = () => {
+    state.orderEditing = state.recipeId;
+    render();
+    setTimeout(() => { const i = $app.querySelector("#order-input"); if (i) { i.focus(); i.select(); } }, 50);
+  });
+  $app.querySelectorAll("[data-order-cancel]").forEach(b => b.onclick = () => {
+    state.orderEditing = null;
+    render();
+  });
+  $app.querySelectorAll("[data-order-save]").forEach(b => b.onclick = () => {
+    const v = Math.round(Number($app.querySelector("#order-input").value));
+    if (!Number.isFinite(v) || v < 1 || v > 9999) { toast("Enter a price in rupees, e.g. 280"); return; }
+    const all = orderStore.all;
+    all[state.recipeId] = v;
+    orderStore.save(all);
+    state.orderEditing = null;
+    render();
+    toast("Saved — savings now use your usual price");
+  });
+  $app.querySelectorAll("[data-order-reset]").forEach(b => b.onclick = () => {
+    const all = orderStore.all;
+    delete all[state.recipeId];
+    orderStore.save(all);
+    state.orderEditing = null;
+    render();
+    toast("Back to the typical price");
+  });
+
   // app selection for handoff
   $app.querySelectorAll("[data-app]").forEach(b => b.onclick = () => {
     state.selectedApp = b.dataset.app;
@@ -1684,7 +1766,7 @@ function bind() {
     b.disabled = true;
     const r = recipeById(state.recipeId);
     const f = factorFor(r);
-    const saved = Math.max(0, Math.round((r.deliveryPrice - r.cookCost) * f));
+    const saved = savingOf(r, f);
     store.addMeal({
       name: r.name, emoji: r.emoji, saved, serves: servingsFor(r),
       date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),

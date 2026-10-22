@@ -967,3 +967,20 @@ html[data-vt-type~="update"]::view-transition-old(*):only-child { animation: vt-
   .p-cell { padding: 8px; }
   .p-input { padding: 0 8px; }
 }
+
+/* ---------- Cook vs order: price detail + "my usual price" ---------- */
+.order-detail {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+  margin-top: 12px; font-size: 13px; color: var(--text-2); line-height: 1.5;
+}
+.order-detail b { color: var(--text); }
+.link-inline {
+  font-size: 13px; font-weight: 700; color: var(--terracotta);
+  padding: 4px 0; text-decoration: underline; text-underline-offset: 3px;
+}
+.link-inline:hover { color: var(--terracotta-deep); }
+.order-edit { margin-top: 10px; padding: 12px; border-radius: var(--r-md); background: var(--surface-2); }
+.order-edit .fine { margin: 0 0 8px; }
+.order-edit-row { display: flex; align-items: center; gap: 8px; }
+.order-edit-row .p-input { flex: 1; max-width: 160px; }
+.order-edit-row .btn { height: 44px; }
