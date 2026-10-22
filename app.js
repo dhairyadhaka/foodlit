@@ -463,8 +463,14 @@ function homeView() {
       <section class="tonight" aria-labelledby="tonight-title">
         <p class="hello" data-enter>${copy.hello}</p>
         <h2 class="tonight-title" id="tonight-title" data-enter>${copy.title}</h2>
-        <p class="tonight-sub" data-enter>Picked for ${copy.meal}, starting with what's already in your pantry.</p>
-        <div class="picks" data-enter>
+        <div class="tonight-row" data-enter>
+          <p class="tonight-sub">Picked for ${copy.meal}, starting with what's already in your pantry.</p>
+          <div class="row-nav" aria-hidden="true">
+            <button class="row-btn" data-row-prev="picks" tabindex="-1">${ic("chevL")}</button>
+            <button class="row-btn" data-row-next="picks" tabindex="-1">${ic("chevR")}</button>
+          </div>
+        </div>
+        <div class="picks" id="picks" data-scroller data-enter>
           ${picks.map((p, i) => `
             <button class="pick ${i === 0 ? "pick--top" : ""}" data-recipe="${p.r.id}" data-vt="card-${p.r.id}">
               ${dishPhoto(p.r, "pick-photo", { eager: i < 2 })}
@@ -506,7 +512,7 @@ function homeView() {
         <h3 class="sec-title">${searching ? `Results for “${esc(state.query.trim())}”` : "Browse all dishes"}</h3>
         <span class="sec-aux"><span data-roll="list-count">${list.length}</span> ${list.length === 1 ? "dish" : "dishes"}</span>
       </div>
-      <div class="cuisines" role="group" aria-label="Cuisine">
+      <div class="cuisines" role="group" aria-label="Cuisine" data-scroller>
         ${[{ id: "all", name: "All" }, ...CUISINES].map(c => {
           const on = state.cuisine === c.id;
           return `
@@ -1157,7 +1163,68 @@ function renderKeepingFocus(id) {
   if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
 }
 
+// Sideways rows (tonight's picks, cuisine chips). Phones swipe them natively;
+// on a laptop a mouse wheel only scrolls vertically and there is no visible
+// scrollbar, so the row looked stuck. Add: arrow buttons, wheel → sideways
+// while the pointer is over the row (only until it reaches an end, so the
+// page still scrolls), and click-and-drag.
+function bindScrollers() {
+  $app.querySelectorAll("[data-scroller]").forEach(row => {
+    const max = () => row.scrollWidth - row.clientWidth;
+    const sync = () => {
+      const id = row.id;
+      if (!id) return;
+      const prev = $app.querySelector(`[data-row-prev="${id}"]`), next = $app.querySelector(`[data-row-next="${id}"]`);
+      if (prev) prev.disabled = row.scrollLeft <= 2;
+      if (next) next.disabled = row.scrollLeft >= max() - 2;
+    };
+    row.addEventListener("scroll", sync, { passive: true });
+    sync();
+
+    // One wheel notch = one card. Small nudges would just snap back to the
+    // card they started on, which is exactly what felt "stuck".
+    let wheelLock = false;
+    const step = () => {
+      const [a, b] = row.children;
+      return a && b ? b.offsetLeft - a.offsetLeft : row.clientWidth * 0.6;
+    };
+    row.addEventListener("wheel", e => {
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; // trackpad swipe: native
+      const atStart = row.scrollLeft <= 0, atEnd = row.scrollLeft >= max() - 1;
+      if ((e.deltaY < 0 && atStart) || (e.deltaY > 0 && atEnd)) return; // let the page scroll
+      e.preventDefault();
+      if (wheelLock) return;
+      wheelLock = true;
+      row.scrollBy({ left: Math.sign(e.deltaY) * step(), behavior: Motion.reduced.matches ? "auto" : "smooth" });
+      setTimeout(() => { wheelLock = false; }, 280);
+    }, { passive: false });
+
+    let x0 = 0, left0 = 0, dragged = false, down = false;
+    row.addEventListener("pointerdown", e => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      down = true; dragged = false; x0 = e.clientX; left0 = row.scrollLeft;
+    });
+    row.addEventListener("pointermove", e => {
+      if (!down) return;
+      const dx = e.clientX - x0;
+      if (!dragged && Math.abs(dx) > 6) { dragged = true; row.classList.add("dragging"); row.setPointerCapture(e.pointerId); }
+      if (dragged) row.scrollLeft = left0 - dx;
+    });
+    const end = () => { down = false; row.classList.remove("dragging"); };
+    row.addEventListener("pointerup", end);
+    row.addEventListener("pointercancel", end);
+    // A drag should never also open the dish it started on.
+    row.addEventListener("click", e => { if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; } }, true);
+  });
+  $app.querySelectorAll("[data-row-prev], [data-row-next]").forEach(b => b.onclick = () => {
+    const row = document.getElementById(b.dataset.rowPrev || b.dataset.rowNext);
+    const dir = b.dataset.rowPrev ? -1 : 1;
+    row.scrollBy({ left: dir * row.clientWidth * 0.8, behavior: Motion.reduced.matches ? "auto" : "smooth" });
+  });
+}
+
 function bind() {
+  bindScrollers();
   // navigation
   $app.querySelectorAll("[data-back]").forEach(b => b.onclick = () => go(b.dataset.back));
   $app.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => go(b.dataset.nav));
