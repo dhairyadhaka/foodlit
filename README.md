@@ -2,27 +2,13 @@
 
 Photo → recipe → ingredients ordered at the cheapest price. Built from `FoodLit.md` (PRD v0.1).
 
-**UI — "Kitchen Cinema" (v14):** an editorial, film-like design system in `styles.css`. It pairs the Fraunces serif for display text with Geist for UI and Geist Mono for numbers, on a warm charcoal and ember palette with film grain and ambient light. Light and dark themes both follow `prefers-color-scheme`. Fonts load from Google Fonts. Offline, the system font stacks take over.
+**UI — "Warm Kitchen" (v18):** a light, friendly design system in `styles.css`. Cream background, terracotta as the one main color, and herb green used only for money saved and "you have this". Headings use Bricolage Grotesque and everything else uses Inter. It's designed for phones first and works down to 360px wide.
 
-**Motion — `motion.js` (no dependencies, so it still works offline):**
-- **View Transitions API:** screens push and pop, and a dish photo morphs from its card into the recipe hero and then into the basket thumbnail. When filters change, cards slide to their new positions and the active-filter pills glide between options. `motion.js` names only the elements that are on screen, so off-screen cards aren't captured.
-- **CSS scroll-driven animations:** cards reveal as they scroll in, the recipe hero has parallax, and the recipe top bar turns solid as you scroll. Browsers without support show the static layout.
-- **Web Animations API:** staggered entrances, a word-by-word blur reveal on titles, the camera shutter, confetti, and a once-per-session intro.
-- **Spring easing via `linear()` curves:** rolling-digit counters (`data-roll`), plus bars and checkboxes that animate from their previous value (`data-tween`).
-- **Desktop pointer effects:** cards tilt with a glare highlight, and buttons drift slightly toward the cursor.
-- **`prefers-reduced-motion`:** all of the above is reduced to instant state changes.
+**Home = "What to cook tonight":** the home screen leads with dish picks for the current meal (breakfast 5–11am, lunch until 4pm, dinner otherwise). They're sorted by how few ingredients you need to buy, based on your pantry, then by cooking time. Each card says "You have 9 of 11 · buy 2". See `tonightPicks()` in `app.js`. Snap and search sit just below, followed by the savings card and the full browsable list.
 
-Ideas and timing come from Emil Kowalski's animation guidance, Vaul (sheet curve), Magic UI (border beam, shimmer), React Bits (blur text), NumberFlow (rolling digits) and Codrops (grid reveals). They were re-implemented in vanilla JS and CSS, and no code was copied.
+**Motion — `motion.js` (no dependencies, so it still works offline):** kept to what explains a change. The dish photo morphs from its card into the recipe (View Transitions), savings and prices roll to their new values, checkboxes draw their tick, and sheets slide up. There's no intro, film grain or glow. All motion is reduced to instant changes with `prefers-reduced-motion`.
 
-`render(mode)` in `app.js` decides which motion plays:
-- `"nav"`: changes screen.
-- `"update"`: changes the same screen in place.
-- `"plain"`: re-renders while typing.
-- `"reveal"`: replays entrances when an async result arrives.
-
-Looping animations take their phase from a shared clock (`--now`), so re-rendering a screen doesn't restart them.
-
-**Branding:** the FoodLit mark is a bowl with a flame rising from it (food, lit), which also reads as a diya. It is defined once as `LOGO_MARK` in `app.js` (the flame flickers on hover and while a photo is being identified). The intro in `motion.js` shows the bowl rising and the flame catching. `icon.svg` is the source of truth for the favicon and home-screen icons. `icon-180.png`, `icon-512.png` and `favicon.ico` are rendered from it by headless Chrome, as full-bleed squares so iOS and Android can apply their own mask. The brand gradient (`--saffron` → `--ember`) is the one colour that breaks the neutral palette.
+**Branding:** the FoodLit mark is a bowl with a fresh sprout (food that's good for you, and a habit that grows) on a terracotta tile. It is defined once as `LOGO_MARK` in `app.js` (the sprout sways on hover and while a photo is identified). `icon.svg` is the source of truth for the favicon and home-screen icons. `icon-180.png`, `icon-512.png` and `favicon.ico` are rendered from it by headless Chrome, as full-bleed squares so iOS and Android can apply their own mask.
 
 **Dish photos:** real photos in `img/<dish-id>.jpg`, sourced from Wikimedia Commons and credited per-recipe in-app — see [CREDITS.md](CREDITS.md). Most are CC BY-SA / CC BY (attribution + share-alike **required** if you ever publish this); a few are CC0. If a photo is missing the card falls back to the dish emoji, so nothing renders broken.
 

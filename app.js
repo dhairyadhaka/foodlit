@@ -333,23 +333,58 @@ const ic = (name, cls = "") =>
 
 // ---------- branding ----------
 
-// Logomark: a bowl with a flame rising from it — food, lit. It also reads
-// as a diya. Same geometry as icon.svg and the intro in motion.js; the
-// flame is its own group so it can flicker on hover and while loading.
+// Logomark: a bowl with a fresh sprout — food that's good for you, and a
+// habit that grows. Same geometry as icon.svg. The leaves are their own
+// group so they can sway on hover and while a photo is being identified.
 const LOGO_MARK = `
   <span class="logo-mark" aria-hidden="true">
     <svg viewBox="0 0 24 24">
-      <path fill="#fff" d="M4 13.2H20C20 17.5 16.5 20.6 12 20.6C7.5 20.6 4 17.5 4 13.2Z" />
-      <rect fill="#fff" x="9" y="20" width="6" height="1.8" rx=".9" />
-      <g class="mk-flame">
-        <path fill="#fff" d="M12 1.4C13.8 3.6 16 5.3 16 7.6A4 4 0 0 1 8 7.6C8 5.8 9 4.5 10 3.6C10.1 4.8 10.6 5.6 11.3 5.9C10.9 4.3 11.3 2.8 12 1.4Z" />
-        <path fill="#f0661f" d="M12 5.6C12.9 6.6 13.9 7.7 13.9 8.9A1.9 1.9 0 0 1 10.1 8.9C10.1 7.7 11.1 6.6 12 5.6Z" />
+      <g class="mk-leaves" fill="#FFF3E6">
+        <path d="M12.4 11.6C12.4 7 15.2 3.8 20 3.2 20 8 17 11.6 12.4 11.6Z" />
+        <path d="M11.6 11.6C11.2 8.6 9.2 6.6 6 6.3 6.1 9.4 8.3 11.6 11.6 11.6Z" />
       </g>
+      <path fill="#fff" d="M3.5 12.8H20.5C20.5 17.4 16.9 20.6 12 20.6S3.5 17.4 3.5 12.8Z" />
+      <rect fill="#fff" x="9" y="20" width="6" height="1.8" rx=".9" />
     </svg>
   </span>`;
 
-// Viewfinder corner brackets — the camera motif used on hero + scanner.
+// Viewfinder corner brackets — the camera motif on the photo scanner.
 const VIEWFINDER = `<span class="vf tl"></span><span class="vf tr"></span><span class="vf bl"></span><span class="vf br"></span>`;
+
+// ---------- "what to cook tonight" ----------
+
+// Breakfast 5–11am, lunch until 4pm, dinner otherwise (late night included).
+function mealNow(d = new Date()) {
+  const h = d.getHours();
+  return h >= 5 && h < 11 ? "breakfast" : h >= 11 && h < 16 ? "lunch" : "dinner";
+}
+const SLOT_COPY = {
+  breakfast: { hello: "Good morning", title: "What's for breakfast?", meal: "breakfast" },
+  lunch: { hello: "Good afternoon", title: "What to cook for lunch", meal: "lunch" },
+  dinner: { hello: "Good evening", title: "What to cook tonight", meal: "dinner" },
+};
+
+// How much of a recipe is already at home. Only catalog items count —
+// water or "salt to taste" can't be bought or owned, so they're ignored.
+function pantryCoverage(r, owned) {
+  const tracked = r.ingredients.filter(i => i.key);
+  const have = tracked.filter(i => owned.has(i.key)).length;
+  return { have, total: tracked.length, missing: tracked.length - have };
+}
+
+// Right meal for the time of day, fewest things to buy first, then quickest.
+function tonightPicks(slot, limit = 6) {
+  const owned = new Set(store.pantry.filter(e => e.qty > 0).map(e => e.key));
+  return RECIPES
+    .filter(r => r.meals.includes(slot))
+    .map(r => ({ r, ...pantryCoverage(r, owned) }))
+    .sort((a, b) => a.missing - b.missing || a.r.time - b.r.time)
+    .slice(0, limit);
+}
+
+const haveLine = p => p.missing === 0
+  ? "You have everything"
+  : `You have ${p.have} of ${p.total} · buy ${p.missing}`;
 
 // ---------- views ----------
 
@@ -364,10 +399,6 @@ function render(mode = "update", after) {
   };
   const fresh = mode === "nav" || mode === "reveal" || mode === "boot";
   const paint = () => {
-    // Looping CSS animations (hero slideshow, shimmer, beams) are phased off
-    // a global clock, so a re-render resumes them mid-loop instead of
-    // restarting — filters can change without the hero "blinking".
-    $app.style.setProperty("--now", `${Math.round(performance.now())}ms`);
     $app.dataset.view = state.view;
     $app.innerHTML = views[state.view]();
     bind();
@@ -379,16 +410,13 @@ function render(mode = "update", after) {
   else paint();
 }
 
-function topbar(title, backTo, { overlay = false } = {}) {
+function topbar(title, backTo) {
   if (!backTo) {
     return `
     <header class="topbar" data-vt="topbar">
       <a class="logo" href="#" data-home aria-label="FoodLit home">
         ${LOGO_MARK}
-        <span class="logo-words">
-          <span class="logo-text">Food<span class="lit">lit</span></span>
-          <span class="logo-sub">photo → pan</span>
-        </span>
+        <span class="logo-text">food<span class="lit">lit</span></span>
       </a>
       <nav class="top-actions">
         <button class="icon-btn" data-nav="pantry" aria-label="My pantry" title="My pantry">${ic("basket")}</button>
@@ -398,150 +426,133 @@ function topbar(title, backTo, { overlay = false } = {}) {
     </header>`;
   }
   return `
-    <header class="topbar ${overlay ? "topbar--overlay" : ""}" data-vt="topbar">
+    <header class="topbar" data-vt="topbar">
       <button class="icon-btn back" data-back="${backTo}" aria-label="Back">${ic("chevL")}</button>
       <h1 class="topbar-title">${esc(title)}</h1>
       <span class="icon-btn spacer" aria-hidden="true"></span>
     </header>`;
 }
 
-function cuisineCover(id) {
-  if (id === "all") {
-    // One dish from each of four kitchens, tiled.
-    return CUISINES.slice(0, 4)
-      .map(c => RECIPES.find(x => x.cuisine === c.id && hasPhoto(x)))
-      .filter(Boolean)
-      .map(r => `<img src="img/${r.id}.jpg" alt="" loading="lazy" decoding="async" />`).join("");
-  }
-  const r = RECIPES.find(x => x.cuisine === id && hasPhoto(x));
+function cuisineThumb(id) {
+  // "All" gets its own dish so it never repeats a cuisine's photo.
+  const r = id === "all" ? recipeById("rajma-burrito-bowl") : RECIPES.find(x => x.cuisine === id && hasPhoto(x));
   return r ? `<img src="img/${r.id}.jpg" alt="" loading="lazy" decoding="async" />` : "";
 }
 
 function homeView() {
   const { count, saved } = totalStats();
+  const slot = mealNow();
+  const copy = SLOT_COPY[slot];
+  const picks = tonightPicks(slot);
   const list = findRecipes(state.query)
     .filter(r => state.cuisine === "all" || r.cuisine === state.cuisine)
     .filter(r => state.meal === "all" || r.meals.includes(state.meal))
     .filter(r => !state.timeFilter || r.time <= state.timeFilter);
-  const active = CUISINES.find(c => c.id === state.cuisine);
-  const activeMeal = MEALS.find(m => m.id === state.meal);
   // Cuisine counts respect the meal filter (and vice versa) so the numbers
   // on the chips match what tapping them would actually show.
   const countFor = id => RECIPES.filter(r =>
     (id === "all" || r.cuisine === id) &&
     (state.meal === "all" || r.meals.includes(state.meal))).length;
-  const mealCount = id => RECIPES.filter(r =>
-    (id === "all" || r.meals.includes(id)) &&
-    (state.cuisine === "all" || r.cuisine === state.cuisine)).length;
-  const heading = [activeMeal ? activeMeal.name : null, active ? active.name : null]
-                  .filter(Boolean).join(" · ") || "All dishes";
-  const heroDishes = ["paneer-butter-masala", "thai-green-curry", "aglio-olio", "butter-chicken", "hakka-noodles"]
-    .map(recipeById).filter(r => r && hasPhoto(r));
+  const searching = !!state.query.trim();
   return `
     ${topbar()}
-    <main class="page page--wide">
-      <section class="hero" data-enter style="--slides:${heroDishes.length}">
-        <div class="hero-media" aria-hidden="true">
-          ${heroDishes.map((r, i) => `<img class="hero-slide" style="--i:${i}" src="img/${r.id}.jpg" alt="" ${i ? 'loading="lazy"' : 'fetchpriority="high"'} />`).join("")}
-        </div>
-        <div class="hero-scrim" aria-hidden="true"></div>
-        <div class="hero-vf" aria-hidden="true">${VIEWFINDER}</div>
-        <div class="hero-rec" aria-hidden="true"><span class="rec-dot"></span>${RECIPES.length} dishes · ${CUISINES.length} kitchens</div>
-        <div class="hero-copy">
-          <p class="eyebrow">Photo → recipe → cheapest basket</p>
-          <h2 class="hero-title"><span data-split>Saw a dish?</span> <em data-split>Cook it.</em></h2>
-          <p class="hero-sub">Snap any plate. We name it, write the recipe, and price every ingredient across Zepto, Blinkit &amp; Instamart.</p>
-          <button class="snap-btn" data-snap data-magnetic>
-            <span class="snap-icon">${ic("camera")}</span>
-            <span>Snap or upload a dish</span>
-            <span class="shine" aria-hidden="true"></span>
+    <main class="page">
+      <section class="tonight" aria-labelledby="tonight-title">
+        <p class="hello" data-enter>${copy.hello}</p>
+        <h2 class="tonight-title" id="tonight-title" data-enter>${copy.title}</h2>
+        <p class="tonight-sub" data-enter>Picked for ${copy.meal}, starting with what's already in your pantry.</p>
+        <div class="picks" data-enter>
+          ${picks.map((p, i) => `
+            <button class="pick ${i === 0 ? "pick--top" : ""}" data-recipe="${p.r.id}" data-vt="card-${p.r.id}">
+              ${dishPhoto(p.r, "pick-photo", { eager: i < 2 })}
+              ${i === 0 ? `<span class="pick-badge">Best match</span>` : ""}
+              <span class="pick-body">
+                <span class="pick-name">${esc(p.r.name)}</span>
+                <span class="pick-meta">${ic("clock")}${p.r.time} min<span class="dot">·</span><span class="save">${fmt(p.r.deliveryPrice - p.r.cookCost)} saved</span></span>
+                <span class="have ${p.missing === 0 ? "have--all" : ""}">
+                  <span class="have-bar"><span style="--v:${p.total ? (p.have / p.total).toFixed(3) : 0}"></span></span>
+                  <span class="have-txt">${haveLine(p)}</span>
+                </span>
+              </span>
+            </button>`).join("")}
+          <button class="pick pick--more" data-browse>
+            <span class="more-ic">${ic("chevR")}</span>
+            <span class="pick-name">See all ${RECIPES.length} dishes</span>
           </button>
         </div>
       </section>
 
-      <div class="home-row">
-        <button class="stats" data-nav="history" data-enter>
-          <span class="stat">
-            <span class="stat-num" data-roll="meals">${count}</span>
-            <span class="stat-lbl">${count === 1 ? "meal" : "meals"} cooked</span>
-          </span>
-          <span class="stat-div" aria-hidden="true"></span>
-          <span class="stat">
-            <span class="stat-num accent">₹<span data-roll="saved">${num(saved)}</span></span>
-            <span class="stat-lbl">kept from delivery</span>
-          </span>
-          <span class="stat-go" aria-hidden="true">${ic("chevR")}</span>
-        </button>
-
-        <label class="search" data-enter>
+      <div class="quick" data-enter>
+        <label class="search">
           ${ic("search")}
-          <input id="search" type="search" placeholder="Search a dish — paneer, poha, pasta…" value="${esc(state.query)}" autocomplete="off" />
-          <kbd aria-hidden="true">/</kbd>
+          <input id="search" type="search" placeholder="Search a dish" value="${esc(state.query)}" autocomplete="off" />
         </label>
+        <button class="snap-btn" data-snap aria-label="Snap or upload a dish photo">${ic("camera")}<span>Snap</span></button>
       </div>
 
-      <div class="sec-head" data-enter>
-        <h3 class="sec-title">Browse by cuisine</h3>
-        <span class="sec-aux">${CUISINES.length} kitchens</span>
+      <button class="savings-card" data-nav="history" data-enter>
+        <span class="savings-ic">${ic("rupee")}</span>
+        <span class="savings-txt">
+          <span class="savings-num">₹<span data-roll="saved">${num(saved)}</span> saved</span>
+          <span class="savings-sub">${count ? `${plural(count, "meal")} cooked instead of ordered` : "Cook your first meal to start saving"}</span>
+        </span>
+        <span class="savings-go" aria-hidden="true">${ic("chevR")}</span>
+      </button>
+
+      <div class="sec-head" id="browse">
+        <h3 class="sec-title">${searching ? `Results for “${esc(state.query.trim())}”` : "Browse all dishes"}</h3>
+        <span class="sec-aux"><span data-roll="list-count">${list.length}</span> ${list.length === 1 ? "dish" : "dishes"}</span>
       </div>
-      <div class="cuisines" data-enter>
-        ${[{ id: "all", name: "Everything" }, ...CUISINES].map(c => {
+      <div class="cuisines" role="group" aria-label="Cuisine">
+        ${[{ id: "all", name: "All" }, ...CUISINES].map(c => {
           const on = state.cuisine === c.id;
           return `
           <button class="cuisine ${on ? "active" : ""}" data-cuisine="${c.id}" aria-pressed="${on}">
-            <span class="cuisine-media ${c.id === "all" ? "mosaic" : ""}" aria-hidden="true">${cuisineCover(c.id)}</span>
+            ${on ? `<span class="chip-pill" data-vt="pill-cuisine"></span>` : ""}
+            <span class="cuisine-thumb" aria-hidden="true">${cuisineThumb(c.id)}</span>
             <span class="cuisine-name">${c.name}</span>
-            <span class="cuisine-count">${plural(countFor(c.id), "dish", "dishes")}</span>
-            ${on ? `<span class="cuisine-ind" data-vt="pill-cuisine"></span>` : ""}
+            <span class="cuisine-count">${countFor(c.id)}</span>
           </button>`;
         }).join("")}
       </div>
-
-      <div class="filters" data-enter>
+      <div class="filters">
         <div class="seg" role="group" aria-label="Meal">
-          ${[{ id: "all", name: "All day" }, ...MEALS].map(m => {
+          ${[{ id: "all", name: "Any meal" }, ...MEALS].map(m => {
             const on = state.meal === m.id;
             return `
             <button class="seg-btn ${on ? "active" : ""}" data-meal="${m.id}" aria-pressed="${on}">
               ${on ? `<span class="seg-pill" data-vt="pill-meal"></span>` : ""}
-              <span class="seg-label">${m.name}</span><span class="seg-count">${mealCount(m.id)}</span>
+              <span class="seg-label">${m.name}</span>
             </button>`;
           }).join("")}
         </div>
         <div class="seg" role="group" aria-label="Cooking time">
-          ${[[0, "Any time"], [20, "≤ 20m"], [30, "≤ 30m"], [45, "≤ 45m"]].map(([v, l]) => {
+          ${[[0, "Any time"], [20, "20 min"], [30, "30 min"], [45, "45 min"]].map(([v, l]) => {
             const on = state.timeFilter === v;
             return `
             <button class="seg-btn ${on ? "active" : ""}" data-time="${v}" aria-pressed="${on}">
               ${on ? `<span class="seg-pill" data-vt="pill-time"></span>` : ""}
-              <span class="seg-label">${l}</span>
+              <span class="seg-label">${v ? `≤ ${l}` : l}</span>
             </button>`;
           }).join("")}
         </div>
       </div>
 
-      <div class="sec-head">
-        <h3 class="sec-title">${esc(heading)}</h3>
-        <span class="sec-aux"><span data-roll="list-count">${list.length}</span> ${list.length === 1 ? "dish" : "dishes"}</span>
-      </div>
       <div class="grid">
         ${list.map(r => `
-          <button class="dish" data-recipe="${r.id}" data-vt="card-${r.id}" data-tilt data-enter>
-            <span class="dish-inner">
+          <button class="dish" data-recipe="${r.id}" data-vt="card-${r.id}">
+            <span class="dish-media">
               ${dishPhoto(r, "dish-photo")}
-              <span class="dish-scrim" aria-hidden="true"></span>
-              <span class="dish-glare" aria-hidden="true"></span>
               <span class="dish-time">${ic("clock")}${r.time}m</span>
-              <span class="dish-body">
-                <span class="dish-cuisine">${cuisineName(r.cuisine)}</span>
-                <span class="dish-name">${esc(r.name)}</span>
-                <span class="dish-meta">${r.kcalPerServe} kcal · serves ${r.serves}</span>
-              </span>
+            </span>
+            <span class="dish-body">
+              <span class="dish-name">${esc(r.name)}</span>
+              <span class="dish-meta">${esc(cuisineName(r.cuisine))} · ${r.kcalPerServe} kcal</span>
             </span>
           </button>`).join("")}
       </div>
       ${list.length ? "" : `
-        <div class="empty" data-enter>
+        <div class="empty">
           <span class="empty-ic">${ic("search")}</span>
           <p>Nothing matches${state.query ? ` “${esc(state.query)}”` : ""} with these filters.</p>
           <p class="muted">Try another cuisine or meal, or clear the time limit.</p>
@@ -610,21 +621,22 @@ function recipeView() {
   const totalKcal = Math.round(r.kcalPerServe * n);
   const meals = r.meals.map(m => (MEALS.find(x => x.id === m) || { name: m }).name).join(" · ");
   const people = n === 1 ? "person" : "people";
+  const cover = pantryCoverage(r, new Set(store.pantry.filter(e => e.qty > 0).map(e => e.key)));
   return `
-    ${topbar(r.name, "home", { overlay: true })}
-    <header class="r-hero">
-      ${dishPhoto(r, "r-photo", { eager: true })}
-      <div class="r-scrim" aria-hidden="true"></div>
-      <div class="r-copy">
-        <p class="eyebrow">${esc(cuisineName(r.cuisine))} · ${esc(meals)}</p>
-        <h2 class="r-title" data-split>${esc(r.name)}</h2>
-        <div class="r-chips">
-          <span class="glass-chip">${ic("clock")}${r.time} min</span>
-          <span class="glass-chip">${ic("flame")}${r.kcalPerServe} kcal / serve</span>
-        </div>
-      </div>
-    </header>
+    ${topbar(r.name, "home")}
     <main class="page r-page">
+      <header class="r-hero">
+        ${dishPhoto(r, "r-photo", { eager: true })}
+        <div class="r-head">
+          <p class="eyebrow">${esc(cuisineName(r.cuisine))} · ${esc(meals)}</p>
+          <h2 class="r-title" data-split>${esc(r.name)}</h2>
+          <div class="r-chips">
+            <span class="chip">${ic("clock")}${r.time} min</span>
+            <span class="chip">${ic("flame")}${r.kcalPerServe} kcal / serve</span>
+            <span class="chip ${cover.missing === 0 ? "chip--good" : ""}">${ic("basket")}${haveLine(cover)}</span>
+          </div>
+        </div>
+      </header>
       ${photoCredit(r)}
       <div class="r-grid">
         <div class="r-col">
@@ -662,7 +674,7 @@ function recipeView() {
 
           <a class="video" href="${r.video}" target="_blank" rel="noopener" data-enter>
             <span class="video-play">${ic("play")}</span>
-            <span class="video-copy"><span class="video-t">Watch it cooked</span><span class="video-s">Video walkthrough · opens in a new tab</span></span>
+            <span class="video-copy"><span class="video-t">Watch it cooked</span><span class="video-s">Step-by-step video</span></span>
             ${ic("ext", "video-ext")}
           </a>
         </div>
@@ -685,13 +697,13 @@ function recipeView() {
 
           <section class="panel">
             <div class="panel-head"><h3>Method</h3><span class="sec-aux">${r.steps.length} steps</span></div>
-            <ol class="steps">${r.steps.map((s, i) => `<li><span class="step-n">${String(i + 1).padStart(2, "0")}</span><p>${esc(s)}</p></li>`).join("")}</ol>
+            <ol class="steps">${r.steps.map((s, i) => `<li><span class="step-n">${i + 1}</span><p>${esc(s)}</p></li>`).join("")}</ol>
           </section>
         </div>
       </div>
     </main>
     <div class="cta-bar" data-vt="cta">
-      <button class="cta" data-basket data-magnetic data-enter>${ic("cart")}<span>Build basket &amp; compare prices</span><span class="shine" aria-hidden="true"></span></button>
+      <button class="cta" data-basket data-enter>${ic("cart")}<span>Build basket &amp; compare prices</span></button>
     </div>`;
 }
 
@@ -784,7 +796,7 @@ function basketView() {
               <span class="handoff-go">Open ${ic("ext")}</span>
             </a>`).join("")}
         </div>
-        <p class="fine left">No public ordering API exists for these apps — checkout finishes in ${selApp.name} itself (PRD §8.1).</p>
+        <p class="fine left">These apps don't accept orders from other apps yet, so you finish checkout in ${selApp.name}.</p>
       </section>
       <section class="savings" data-enter>
         <span class="savings-ic">${ic("spark")}</span>
@@ -797,7 +809,7 @@ function basketView() {
       </div>
     </main>
     <div class="cta-bar" data-vt="cta">
-      <button class="cta cta--leaf" data-cooked data-magnetic data-enter>${ic("check")}<span>I cooked this — log it</span><span class="cta-pill">+${fmt(saving)}</span><span class="shine" aria-hidden="true"></span></button>
+      <button class="cta cta--leaf" data-cooked data-enter>${ic("check")}<span>I cooked this — log it</span><span class="cta-pill">+${fmt(saving)}</span></button>
     </div>`;
 }
 
@@ -923,8 +935,8 @@ function historyView() {
         <button class="btn btn-outline grow" data-export>${ic("down")}Export backup</button>
         <button class="btn btn-outline grow" data-import>${ic("up")}Import</button>
       </div>` : ""}
-      <p class="fine center">North Star: meals cooked that would otherwise have been ordered (PRD §7).<br/>
-      This log lives only in this browser — export it somewhere safe.</p>
+      <p class="fine center">Every meal here is one you cooked instead of ordering.<br/>
+      This log lives only on this device — export it to keep it safe.</p>
     </main>`;
 }
 
@@ -942,7 +954,7 @@ function openSettings() {
   const pantryCount = store.pantry.filter(e => CATALOG[e.key] && e.qty > 0).length;
   const wrap = sheetShell(`
       <h3 class="sheet-title">${ic("sliders")}Settings</h3>
-      <p class="sheet-copy">Paste an Anthropic API key to enable photo dish recognition. It's stored only in this browser (single-user MVP). Without a key, the search fallback still works.</p>
+      <p class="sheet-copy">To recognise dishes from photos, FoodLit needs an Anthropic key (a private code for the AI). It stays on this device only. Search works without it.</p>
       <label class="field">${ic("key")}<input id="key-input" type="password" placeholder="sk-ant-…" value="${esc(store.apiKey)}" autocomplete="off" /></label>
       <div class="btn-row">
         <button class="btn btn-ghost grow cancel">Cancel</button>
@@ -953,7 +965,7 @@ function openSettings() {
       <h3 class="sheet-title small">Backup your data</h3>
       <p class="sheet-copy">
         <b>${plural(count, "meal")} logged · ${fmt(saved)} saved · ${plural(pantryCount, "pantry item")}.</b><br/>
-        This lives only in this browser — clearing site data or switching phones loses it. Your API key is never included in a backup.
+        This lives only in this browser — clearing site data or switching phones loses it. Your Anthropic key is never included in a backup.
       </p>
       <div class="btn-row">
         <button class="btn btn-outline grow" data-export>${ic("down")}Export</button>
@@ -969,7 +981,7 @@ function openSettings() {
   wrap.querySelector(".save").onclick = () => {
     store.apiKey = wrap.querySelector("#key-input").value.trim();
     close();
-    toast(store.apiKey ? "API key saved — photo ID enabled" : "API key cleared");
+    toast(store.apiKey ? "Key saved — photo recognition is on" : "Key removed");
   };
 }
 
@@ -1073,7 +1085,7 @@ async function identifyPhoto(file) {
   if (!store.apiKey) {
     state.identify = {
       imgUrl, status: "error", guesses: null,
-      error: "No API key set (Settings). Photo recognition needs one — meanwhile, search the dish below.",
+      error: "Photo recognition isn't set up yet (add your key in Settings). Meanwhile, search for the dish below.",
     };
     // Let the scanner play briefly so the screen change reads as cause → effect.
     setTimeout(() => render("reveal"), 900);
@@ -1152,6 +1164,8 @@ function bind() {
   $app.querySelectorAll("[data-import]").forEach(b => b.onclick = () => $importInput.click());
   $app.querySelectorAll("[data-recipe]").forEach(b => b.onclick = () =>
     go("recipe", { recipeId: b.dataset.recipe, selectedApp: null }));
+  $app.querySelectorAll("[data-browse]").forEach(b => b.onclick = () =>
+    document.getElementById("browse").scrollIntoView({ behavior: Motion.reduced.matches ? "auto" : "smooth", block: "start" }));
   $app.querySelectorAll("[data-snap]").forEach(b => b.onclick = () => {
     $photoInput.click();          // must stay synchronous with the tap
     Motion.shutter();
@@ -1312,7 +1326,5 @@ if ("serviceWorker" in navigator && (location.protocol === "https:" || location.
   navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
-// First paint: the intro (once per session) owns the entrance; otherwise
-// the home screen choreographs itself in.
-const introPlaying = Motion.intro();
-render(introPlaying ? "boot" : "reveal");
+// First paint: the home screen eases itself in.
+render("reveal");

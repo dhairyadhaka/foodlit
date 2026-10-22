@@ -16,7 +16,6 @@
 
 const Motion = (() => {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
   const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)";
   const SHEET = "cubic-bezier(0.32, 0.72, 0, 1)";
 
@@ -47,6 +46,10 @@ const Motion = (() => {
     tagShared();
     html.dataset.vtType = types.join(" ");
     const vt = document.startViewTransition(() => { update(); tagShared(); });
+    // A skipped transition (tab hidden, a newer one started) rejects these;
+    // the DOM update still happens, so there's nothing to report.
+    vt.ready.catch(() => {});
+    vt.updateCallbackDone.catch(() => {});
     vt.finished.catch(() => {}).finally(() => { if (mine === token) delete html.dataset.vtType; });
   }
 
@@ -58,11 +61,10 @@ const Motion = (() => {
     root.querySelectorAll("[data-enter]").forEach(el => {
       const r = el.getBoundingClientRect();
       if (r.top > innerHeight + 40) return; // below the fold: scroll reveal handles it
-      const blur = el.dataset.enter === "blur";
       el.animate([
-        { opacity: 0, transform: "translateY(22px) scale(.985)", filter: blur ? "blur(8px)" : "none" },
-        { opacity: 1, transform: "none", filter: blur ? "blur(0)" : "none" },
-      ], { duration: 760, delay: 70 + i++ * 55, easing: EASE_OUT, fill: "backwards" });
+        { opacity: 0, transform: "translateY(12px)" },
+        { opacity: 1, transform: "none" },
+      ], { duration: 520, delay: 40 + i++ * 45, easing: EASE_OUT, fill: "backwards" });
     });
     root.querySelectorAll("[data-split]").forEach(splitReveal);
   }
@@ -75,9 +77,9 @@ const Motion = (() => {
     el.setAttribute("aria-label", el.textContent.trim());
     el.innerHTML = words.map(w => `<span class="w" aria-hidden="true"><span>${w}</span></span>`).join(" ");
     el.querySelectorAll(".w > span").forEach((s, i) => s.animate([
-      { transform: "translateY(105%) rotate(4deg)", opacity: 0, filter: "blur(6px)" },
-      { transform: "none", opacity: 1, filter: "blur(0)" },
-    ], { duration: 900, delay: 120 + i * 70, easing: EASE_OUT, fill: "backwards" }));
+      { transform: "translateY(60%)", opacity: 0 },
+      { transform: "none", opacity: 1 },
+    ], { duration: 600, delay: 80 + i * 50, easing: EASE_OUT, fill: "backwards" }));
   }
 
   // ---------- rolling numbers ----------
@@ -142,50 +144,10 @@ const Motion = (() => {
     });
   }
 
-  // ---------- pointer: tilt + glare, magnetic ----------
-
-  function tilt(root) {
-    if (!finePointer.matches || reduced.matches) return;
-    root.querySelectorAll("[data-tilt]").forEach(card => {
-      card.addEventListener("pointermove", e => {
-        const r = card.getBoundingClientRect();
-        const x = (e.clientX - r.left) / r.width - 0.5;
-        const y = (e.clientY - r.top) / r.height - 0.5;
-        card.style.setProperty("--rx", `${(-y * 7).toFixed(2)}deg`);
-        card.style.setProperty("--ry", `${(x * 9).toFixed(2)}deg`);
-        card.style.setProperty("--gx", `${((x + 0.5) * 100).toFixed(1)}%`);
-        card.style.setProperty("--gy", `${((y + 0.5) * 100).toFixed(1)}%`);
-      });
-      card.addEventListener("pointerleave", () => {
-        card.style.setProperty("--rx", "0deg");
-        card.style.setProperty("--ry", "0deg");
-      });
-    });
-  }
-
-  function magnetic(root) {
-    if (!finePointer.matches || reduced.matches) return;
-    root.querySelectorAll("[data-magnetic]").forEach(el => {
-      el.addEventListener("pointermove", e => {
-        const r = el.getBoundingClientRect();
-        const x = (e.clientX - r.left - r.width / 2) / r.width;
-        const y = (e.clientY - r.top - r.height / 2) / r.height;
-        el.style.setProperty("--mx", `${(x * 10).toFixed(1)}px`);
-        el.style.setProperty("--my", `${(y * 8).toFixed(1)}px`);
-      });
-      el.addEventListener("pointerleave", () => {
-        el.style.setProperty("--mx", "0px");
-        el.style.setProperty("--my", "0px");
-      });
-    });
-  }
-
   // Run after every paint of #app.
   function afterPaint(root, { fresh }) {
     roll(root, fresh);
     tween(root, fresh);
-    tilt(root);
-    magnetic(root);
     if (fresh) enter(root);
   }
 
@@ -215,8 +177,8 @@ const Motion = (() => {
     const ctx = c.getContext("2d");
     ctx.scale(dpr, dpr);
     const css = getComputedStyle(document.documentElement);
-    const colors = ["--ember", "--saffron", "--leaf", "--text"].map(v => css.getPropertyValue(v).trim());
-    const parts = Array.from({ length: 140 }, () => {
+    const colors = ["--terracotta", "--tomato", "--leaf", "--butter"].map(v => css.getPropertyValue(v).trim());
+    const parts = Array.from({ length: 90 }, () => {
       const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.4;
       const v = 9 + Math.random() * 9;
       return {
@@ -292,44 +254,5 @@ const Motion = (() => {
       .finished.finally(() => wrap.remove());
   }
 
-  // ---------- intro ----------
-
-  // A one-per-session title sequence: aperture opens, wordmark rises,
-  // curtain lifts. Tap to skip. Never shown with reduced motion.
-  function intro() {
-    let seen = false;
-    try { seen = sessionStorage.getItem("stc_intro") === "1"; sessionStorage.setItem("stc_intro", "1"); } catch {}
-    if (seen || reduced.matches) return false;
-    const el = document.createElement("div");
-    el.className = "splash";
-    el.innerHTML = `
-      <div class="splash-inner">
-        <svg class="splash-mark" viewBox="0 0 24 24" aria-hidden="true">
-          <g class="sp-bowl" fill="#f6efe6">
-            <path d="M4 13.2H20C20 17.5 16.5 20.6 12 20.6C7.5 20.6 4 17.5 4 13.2Z" />
-            <rect x="9" y="20" width="6" height="1.8" rx=".9" />
-          </g>
-          <g class="sp-flame">
-            <path fill="#ff6b2c" d="M12 1.4C13.8 3.6 16 5.3 16 7.6A4 4 0 0 1 8 7.6C8 5.8 9 4.5 10 3.6C10.1 4.8 10.6 5.6 11.3 5.9C10.9 4.3 11.3 2.8 12 1.4Z" />
-            <path fill="#ffc06a" d="M12 5.6C12.9 6.6 13.9 7.7 13.9 8.9A1.9 1.9 0 0 1 10.1 8.9C10.1 7.7 11.1 6.6 12 5.6Z" />
-          </g>
-        </svg>
-        <div class="splash-word"><span>Food</span><em>lit</em></div>
-        <div class="splash-tag">photo&nbsp;&nbsp;→&nbsp;&nbsp;pan</div>
-      </div>`;
-    document.body.appendChild(el);
-    const done = () => {
-      if (el.dataset.out) return;
-      el.dataset.out = "1";
-      el.animate([{ clipPath: "inset(0 0 0 0)" }, { clipPath: "inset(0 0 100% 0)" }],
-        { duration: 700, easing: "cubic-bezier(0.76, 0, 0.24, 1)", fill: "forwards" })
-        .finished.finally(() => el.remove());
-      enter(document.getElementById("app"));
-    };
-    el.addEventListener("click", done);
-    setTimeout(done, 1650);
-    return true;
-  }
-
-  return { transition, afterPaint, enter, shutter, confetti, sheet, closeSheet, intro, reduced };
+  return { transition, afterPaint, enter, shutter, confetti, sheet, closeSheet, reduced };
 })();

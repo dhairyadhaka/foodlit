@@ -1,18 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <!-- FoodLit mark: a bowl with a flame rising from it. Source of truth for
+  <!-- FoodLit mark: a bowl with a fresh sprout. Source of truth for
        icon-180.png, icon-512.png and favicon.ico (24-unit grid, scaled 15x). -->
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffb547"/>
-      <stop offset=".6" stop-color="#ff6b2c"/>
-      <stop offset="1" stop-color="#b83213"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#g)"/>
-  <g transform="translate(76,76) scale(15)">
-    <path fill="#fff" d="M4 13.2H20C20 17.5 16.5 20.6 12 20.6C7.5 20.6 4 17.5 4 13.2Z"/>
+  <rect width="512" height="512" rx="112" fill="#C2502F"/>
+  <g transform="translate(76,80) scale(15)">
+    <path fill="#FFF3E6" d="M12.4 11.6C12.4 7 15.2 3.8 20 3.2 20 8 17 11.6 12.4 11.6Z"/>
+    <path fill="#FFF3E6" d="M11.6 11.6C11.2 8.6 9.2 6.6 6 6.3 6.1 9.4 8.3 11.6 11.6 11.6Z"/>
+    <path fill="#fff" d="M3.5 12.8H20.5C20.5 17.4 16.9 20.6 12 20.6S3.5 17.4 3.5 12.8Z"/>
     <rect fill="#fff" x="9" y="20" width="6" height="1.8" rx=".9"/>
-    <path fill="#fff" d="M12 1.4C13.8 3.6 16 5.3 16 7.6A4 4 0 0 1 8 7.6C8 5.8 9 4.5 10 3.6C10.1 4.8 10.6 5.6 11.3 5.9C10.9 4.3 11.3 2.8 12 1.4Z"/>
-    <path fill="#f0661f" d="M12 5.6C12.9 6.6 13.9 7.7 13.9 8.9A1.9 1.9 0 0 1 10.1 8.9C10.1 7.7 11.1 6.6 12 5.6Z"/>
   </g>
 </svg>
