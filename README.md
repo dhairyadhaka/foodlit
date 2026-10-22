@@ -14,6 +14,14 @@ Photo → recipe → ingredients ordered at the cheapest price. Built from `Food
 
 **Backup:** ⚙️ Settings and the History screen both have **Export / Import**. Export writes `foodlit-backup-YYYY-MM-DD.json` (older `snap-to-cook` backups still import) (meals + pantry, **never** the API key) — on iOS it goes through the share sheet so you can Save to Files. Import validates and sanitises the file, then offers **Merge** (dedupes meals by name+date+amount, so restoring an old backup can't wipe newer entries) or **Replace**. Pantry keys not in this build's catalog are skipped and reported.
 
+**Prices (not live):** none of the three apps offers live prices to other apps, so prices are a hand-kept snapshot.
+- **Base snapshot:** `data.js` holds the base prices, taken on `PRICES_CHECKED_ON` (13 Aug 2026).
+- **Estimates:** items marked `estimated: true` were never checked (the 25 added with the 36-dish expansion). The basket labels them "estimate".
+- **Update prices:** ⚙️ Settings → Update prices, or the link under the price comparison. It lists the 20 most-used items first, each with an Open link per app and boxes for the price you see there. Saving stores the prices with today's date in `localStorage` (`stc_prices`), layered on top of `data.js`.
+- **The note under the comparison:** shows the check dates, how many prices are estimates, and that the real total shows in the app.
+- **Backups:** checked prices are included. Merging keeps whichever check is newer.
+- **How often:** re-check the top 20 every few weeks (about 15 minutes).
+
 **Editing note:** asset URLs are versioned (`styles.css?v=5`). After changing `app.js`, `motion.js`, `data.js` or `styles.css`, bump the `?v=` number in `index.html` **and** the `CACHE` name in `sw.js`, or browsers and the installed PWA will serve the stale cached copy.
 
 **Run it:** any static server, e.g.
@@ -33,7 +41,7 @@ then open http://localhost:4173 on your phone or browser (mobile-width works bes
 | — | Meal categories | "Any meal / Breakfast (16) / Lunch (42) / Dinner (50)" tabs. A dish can belong to several (`meals: []` in `data.js`) — most Indian mains are lunch **and** dinner. Combines with cuisine and time; chip counts update to reflect the other active filters. Recipe screens show their meal slots. |
 | — | Cuisine categories | "Browse by cuisine" strip on home: All / Indian (33) / Italian (5) / Grills (5) / Asian (6) / Mexican (5) / Continental (9) / Salads & Bowls (6). Combines with the time filter; typing a search resets to All so no match is hidden. Add a cuisine by appending to `CUISINES` in `data.js` and tagging recipes with its id. |
 | P0-3 | Ingredient → SKU mapping | Hand-curated catalog (95 SKUs) per PRD §8.3; unmapped items flagged amber (e.g. fresh coconut in Poha). |
-| P0-4 | Cross-app price comparison | Per-basket totals for Zepto / Blinkit / Instamart, cheapest highlighted, "last checked" timestamp; apps missing an item are excluded from the crown (edge #9 — e.g. paneer is out of stock on Instamart). |
+| P0-4 | Cross-app price comparison | Per-basket totals for Zepto / Blinkit / Instamart with the cheapest highlighted. Apps missing an item are excluded from the crown (edge #9, e.g. paneer is out of stock on Instamart). **Prices are not live.** See *Prices* below. |
 | P0-5 | One-tap handoff | Deep links to each app's search page per item; checkout finishes in the partner app (no public ordering API — PRD §8.1). |
 | P0-6 | Pantry exclusions | Untick items you have; totals recalc instantly. Pantry staples (salt, oil, spices) start unticked. |
 | P1 | Cook-vs-order cost | Recipe screen shows cook ~₹ (hand-estimated `cookCost` in `data.js` = ingredients the meal actually uses) vs delivered ₹. The full-pack basket total is shown separately — leftovers carry over. |

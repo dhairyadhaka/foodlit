@@ -52,6 +52,7 @@ const store = {
       exportedAt: new Date().toISOString(),
       meals: this.meals,
       pantry: this.pantry,
+      prices: priceStore.all,
     };
   },
 };
@@ -68,7 +69,7 @@ function parseBackup(text) {
   if (!d || typeof d !== "object") return { error: "That file isn't a FoodLit backup." };
   // Backups made before the rename say "snap-to-cook" — still ours.
   if (d.app && !["foodlit", "snap-to-cook"].includes(d.app)) return { error: `That backup is from "${String(d.app).slice(0, 20)}", not FoodLit.` };
-  if (!Array.isArray(d.meals) && !Array.isArray(d.pantry)) {
+  if (!Array.isArray(d.meals) && !Array.isArray(d.pantry) && !d.prices) {
     return { error: "No meals or pantry data found in that file." };
   }
   const meals = (Array.isArray(d.meals) ? d.meals : [])
@@ -86,7 +87,17 @@ function parseBackup(text) {
     .filter(e => e && typeof e.key === "string" && CATALOG[e.key])
     .map(e => ({ key: e.key, qty: Math.min(10, Math.max(1, Math.round(+e.qty) || 1)) }));
   const skipped = (Array.isArray(d.pantry) ? d.pantry.length : 0) - pantry.length;
-  return { meals, pantry, skipped };
+  // Checked prices: known items only, whole rupees or empty, with a real date.
+  const prices = {};
+  if (d.prices && typeof d.prices === "object") {
+    for (const [k, e] of Object.entries(d.prices)) {
+      if (!CATALOG[k] || !e || !/^\d{4}-\d{2}-\d{2}$/.test(e.checked)) continue;
+      const clean = { checked: e.checked };
+      for (const a of Object.keys(APPS)) clean[a] = Number.isFinite(+e[a]) && +e[a] > 0 ? Math.round(+e[a]) : null;
+      prices[k] = clean;
+    }
+  }
+  return { meals, pantry, skipped, prices };
 }
 
 const state = {
@@ -104,6 +115,60 @@ const state = {
   pantryAdd: null,       // { key, qty } staged for adding to the pantry
   homeScroll: 0,         // restored on the way back so the photo morphs into its card
 };
+
+// ---------- prices ----------
+
+// None of the apps offers live prices, so FoodLit keeps a hand-checked
+// snapshot: data.js holds the base (taken PRICES_CHECKED_ON), and anything
+// re-checked on the "Update prices" screen is saved here with its own date
+// and layered on top. Items flagged `estimated` in data.js were never
+// checked; they show as "estimate" until someone checks them.
+const priceStore = {
+  get all() { try { return JSON.parse(localStorage.getItem("stc_prices") || "{}"); } catch { return {}; } },
+  save(all) { localStorage.setItem("stc_prices", JSON.stringify(all)); },
+};
+const BASE_PRICES = Object.fromEntries(Object.entries(CATALOG).map(([k, v]) => [k, { ...v.prices }]));
+
+function applyPrices() {
+  const saved = priceStore.all;
+  for (const [key, sku] of Object.entries(CATALOG)) {
+    const s = saved[key];
+    sku.prices = s ? Object.fromEntries(Object.keys(APPS).map(a => [a, s[a] ?? null])) : { ...BASE_PRICES[key] };
+    sku.checked = s ? s.checked : (sku.estimated ? null : PRICES_CHECKED_ON);
+  }
+}
+applyPrices();
+
+const isEstimate = key => !CATALOG[key].checked;
+
+const todayISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const fmtDay = (iso, year = true) => new Date(iso + "T00:00").toLocaleDateString("en-IN",
+  year ? { day: "numeric", month: "short", year: "numeric" } : { day: "numeric", month: "short" });
+const daysAgo = iso => Math.round((new Date(todayISO() + "T00:00") - new Date(iso + "T00:00")) / 864e5);
+const STALE_DAYS = 30;
+
+// Items ranked by how many recipes use them: checking the top 20 covers
+// most baskets.
+const USAGE = (() => {
+  const n = {};
+  for (const r of RECIPES) for (const k of new Set(r.ingredients.map(i => i.key).filter(Boolean))) n[k] = (n[k] || 0) + 1;
+  return n;
+})();
+const TOP_KEYS = Object.keys(CATALOG).sort((a, b) => (USAGE[b] || 0) - (USAGE[a] || 0) || a.localeCompare(b)).slice(0, 20);
+
+// The honest line under the price comparison.
+function priceNote(keys) {
+  const dates = keys.map(k => CATALOG[k].checked).filter(Boolean).sort();
+  const est = keys.filter(isEstimate).length;
+  const when = !dates.length ? "" : dates[0] === dates.at(-1)
+    ? `checked ${fmtDay(dates[0])}`
+    : `checked between ${fmtDay(dates[0], false)} and ${fmtDay(dates.at(-1))}`;
+  return `Not live prices${when ? ` — ${when}` : ""}. Your real total shows in the app.` +
+    (est ? ` <b>${plural(est, "price")} ${est === 1 ? "is a rough estimate" : "are rough estimates"}.</b>` : "");
+}
 
 // ---------- helpers ----------
 
@@ -192,6 +257,8 @@ function basketFor(recipe) {
       label: sku ? sku.product : ing.name,
       size: sku ? sku.size : null,
       qty: scaleQty(ing.qty, f),
+      key: ing.key || null,
+      estimate: !!(sku && isEstimate(ing.key)),
       prices: sku ? sku.prices : null,
       mapped: !!sku,
       inPantry,
@@ -287,7 +354,7 @@ function toast(msg) {
 }
 
 // Screen depth decides whether a navigation pushes forward or pops back.
-const DEPTH = { home: 0, pantry: 1, history: 1, identify: 1, recipe: 2, basket: 3 };
+const DEPTH = { home: 0, pantry: 1, history: 1, identify: 1, prices: 1, recipe: 2, basket: 3 };
 let navDir = "forward";
 
 function go(view, extra = {}) {
@@ -449,7 +516,7 @@ async function copyText(text) {
 function render(mode = "update", after) {
   const views = {
     home: homeView, identify: identifyView, recipe: recipeView,
-    basket: basketView, pantry: pantryView, history: historyView,
+    basket: basketView, pantry: pantryView, history: historyView, prices: pricesView,
   };
   const fresh = mode === "nav" || mode === "reveal" || mode === "boot";
   const paint = () => {
@@ -816,6 +883,79 @@ function shopPanel() {
       </section>`;
 }
 
+function pricesView() {
+  const filter = state.priceFilter || "top";
+  const allKeys = Object.keys(CATALOG).sort((a, b) => (USAGE[b] || 0) - (USAGE[a] || 0) || a.localeCompare(b));
+  const estKeys = allKeys.filter(isEstimate);
+  const keys = filter === "top" ? TOP_KEYS : filter === "est" ? estKeys : allKeys;
+  const freshTop = TOP_KEYS.filter(k => CATALOG[k].checked && daysAgo(CATALOG[k].checked) <= STALE_DAYS).length;
+  const status = k => {
+    const c = CATALOG[k].checked;
+    if (!c) return `<span class="p-status est">Estimate — not checked</span>`;
+    const d = daysAgo(c);
+    if (d <= 0) return `<span class="p-status ok">${ic("check")}Checked today</span>`;
+    return d <= STALE_DAYS
+      ? `<span class="p-status ok">${ic("check")}Checked ${fmtDay(c, false)}</span>`
+      : `<span class="p-status old">Checked ${fmtDay(c, false)} · ${d} days ago</span>`;
+  };
+  return `
+    ${topbar("Update prices", state.pricesBack || "home")}
+    <main class="page">
+      <section class="page-hero" data-enter>
+        <p class="eyebrow">Keep prices honest</p>
+        <h2 class="page-title">Update prices</h2>
+        <p class="muted">FoodLit can't read live prices from these apps. Every few weeks, open each item, type the price you see, and tap Save. The top 20 takes about 15 minutes.</p>
+      </section>
+
+      <section class="panel p-summary" data-enter>
+        <div class="p-summary-top">
+          <span class="p-summary-num"><span data-roll="fresh-top">${freshTop}</span><span class="of"> / ${TOP_KEYS.length}</span></span>
+          <span class="p-summary-lbl">most-used items checked in the last ${STALE_DAYS} days</span>
+        </div>
+        <div class="shop-bar" aria-hidden="true"><span data-tween="fresh-top" style="--v:${(freshTop / TOP_KEYS.length).toFixed(3)}"></span></div>
+      </section>
+
+      <div class="seg p-filter" role="group" aria-label="Which items">
+        ${[["top", `Most used`, TOP_KEYS.length], ["est", "Estimates", estKeys.length], ["all", "All", allKeys.length]].map(([id, name, n]) => `
+          <button class="seg-btn ${filter === id ? "active" : ""}" data-price-filter="${id}" aria-pressed="${filter === id}">
+            ${filter === id ? `<span class="seg-pill" data-vt="pill-price"></span>` : ""}
+            <span class="seg-label">${name}</span><span class="seg-count">${n}</span>
+          </button>`).join("")}
+      </div>
+
+      ${keys.length ? keys.map(k => {
+        const sku = CATALOG[k];
+        return `
+        <article class="panel p-card" data-price-card="${k}">
+          <div class="p-card-head">
+            <div class="p-card-name">
+              <span class="p-name">${esc(sku.product)}</span>
+              <span class="p-size">${sku.size} · used in ${plural(USAGE[k] || 0, "dish", "dishes")}</span>
+            </div>
+            ${status(k)}
+          </div>
+          <div class="p-grid">
+            ${Object.entries(APPS).map(([a, app]) => `
+              <label class="p-cell" style="--c:${app.color}">
+                <span class="p-app"><span class="app-dot" aria-hidden="true"></span>${app.name}</span>
+                <span class="p-input">₹<input type="number" inputmode="numeric" min="1" max="9999" step="1" data-price-app="${a}" value="${sku.prices[a] ?? ""}" placeholder="—" aria-label="${esc(sku.product)} price on ${app.name}" /></span>
+                <a class="p-open" href="${app.searchUrl(sku.product)}" target="_blank" rel="noopener">Open ${ic("ext")}</a>
+              </label>`).join("")}
+          </div>
+          <div class="p-card-foot">
+            <span class="fine left">Leave a box empty if that app doesn't sell it.</span>
+            <button class="btn btn-primary p-save" data-price-save="${k}">${ic("check")}Save</button>
+          </div>
+        </article>`;
+      }).join("") : `
+        <div class="empty">
+          <span class="empty-ic">${ic("check")}</span>
+          <p>No estimates left.</p>
+          <p class="muted">Every price has been checked at least once.</p>
+        </div>`}
+    </main>`;
+}
+
 function basketView() {
   const r = recipeById(state.recipeId);
   const n = servingsFor(r);
@@ -856,7 +996,7 @@ function basketView() {
               ${it.mapped && Object.values(it.prices).some(p => p == null)
                 ? `<span class="badge danger">Out of stock on ${Object.keys(it.prices).filter(k => it.prices[k] == null).map(k => APPS[k].name).join(", ")}</span>` : ""}
             </span>
-            <span class="b-price">${it.mapped ? `<span class="muted">from</span> ${fmt(Math.min(...Object.values(it.prices).filter(p => p != null)) * it.packs)}` : "—"}</span>
+            <span class="b-price">${it.mapped ? `<span class="muted">from</span> ${fmt(Math.min(...Object.values(it.prices).filter(p => p != null)) * it.packs)}${it.estimate ? `<span class="est-tag">estimate</span>` : ""}` : "—"}</span>
           </label>`).join("")}
       </section>
 
@@ -887,7 +1027,8 @@ function basketView() {
               </button>`;
           }).join("")}
         </div>
-        <p class="fine center">Prices last checked ${PRICES_CHECKED} · *excludes unavailable items</p>
+        <p class="fine center price-note">${priceNote(items.filter(it => it.ticked && it.mapped).map(it => it.key))} *Excludes items an app doesn't sell.</p>
+        <button class="link-btn" data-prices="${items.some(it => it.ticked && it.estimate) ? "est" : "top"}">${ic("sliders")}Update prices</button>
       </section>
 
       ${unmappedCount ? `<div class="note warn" data-enter>${ic("alert")}<span>${plural(unmappedCount, "item")} couldn't be auto-matched — add ${unmappedCount > 1 ? "them" : "it"} yourself in the app.</span></div>` : ""}
@@ -1082,6 +1223,11 @@ function openSettings() {
       </div>
 
       <div class="sheet-sep"></div>
+      <h3 class="sheet-title small">Prices</h3>
+      <p class="sheet-copy">Prices aren't live. Check your most-used items every few weeks to keep comparisons honest.</p>
+      <div class="btn-row"><button class="btn btn-outline grow" data-open-prices>${ic("sliders")}Update prices</button></div>
+
+      <div class="sheet-sep"></div>
       <h3 class="sheet-title small">Backup your data</h3>
       <p class="sheet-copy">
         <b>${plural(count, "meal")} logged · ${fmt(saved)} saved · ${plural(pantryCount, "pantry item")}.</b><br/>
@@ -1097,6 +1243,10 @@ function openSettings() {
   wrap.querySelector("[data-import]").onclick = () => {
     close();
     document.getElementById("import-input").click();
+  };
+  wrap.querySelector("[data-open-prices]").onclick = () => {
+    close();
+    go("prices", { pricesBack: state.view === "prices" ? "home" : state.view });
   };
   wrap.querySelector(".save").onclick = () => {
     store.apiKey = wrap.querySelector("#key-input").value.trim();
@@ -1168,6 +1318,12 @@ function confirmImport(parsed) {
       else { pantry.push(e); pAdded++; }
     }
     store.savePantry(pantry);
+    const prices = priceStore.all;
+    for (const [k, e] of Object.entries(parsed.prices || {})) {
+      if (!prices[k] || prices[k].checked < e.checked) prices[k] = e;
+    }
+    priceStore.save(prices);
+    applyPrices();
     close();
     state.ticks = {};
     go("history");
@@ -1177,6 +1333,8 @@ function confirmImport(parsed) {
   wrap.querySelector("[data-replace]").onclick = () => {
     store.saveMeals(parsed.meals);
     store.savePantry(parsed.pantry);
+    priceStore.save(parsed.prices || {});
+    applyPrices();
     close();
     state.ticks = {};
     go("history");
@@ -1189,7 +1347,7 @@ function handleImportFile(file) {
   reader.onload = () => {
     const parsed = parseBackup(String(reader.result));
     if (parsed.error) { toast("⚠ " + parsed.error); return; }
-    if (!parsed.meals.length && !parsed.pantry.length) { toast("⚠ That backup is empty."); return; }
+    if (!parsed.meals.length && !parsed.pantry.length && !Object.keys(parsed.prices || {}).length) { toast("⚠ That backup is empty."); return; }
     confirmImport(parsed);
   };
   reader.onerror = () => toast("⚠ Couldn't read that file.");
@@ -1478,6 +1636,40 @@ function bind() {
     const text = shoppingListText(shopContext());
     if (await copyText(text)) { toast("Shopping list copied — paste it anywhere"); return; }
     showListSheet(text); // copying blocked (some phones / in-app browsers): show it instead
+  });
+
+  // update prices: filters, open-from-elsewhere, save one item
+  $app.querySelectorAll("[data-price-filter]").forEach(b => b.onclick = () => {
+    state.priceFilter = b.dataset.priceFilter;
+    render();
+  });
+  $app.querySelectorAll("[data-prices]").forEach(b => b.onclick = () =>
+    go("prices", { pricesBack: state.view, priceFilter: b.dataset.prices || state.priceFilter }));
+  $app.querySelectorAll("[data-price-save]").forEach(b => b.onclick = () => {
+    const key = b.dataset.priceSave;
+    const card = b.closest("[data-price-card]");
+    const entry = { checked: todayISO() };
+    for (const input of card.querySelectorAll("[data-price-app]")) {
+      const raw = input.value.trim();
+      if (raw === "") { entry[input.dataset.priceApp] = null; continue; }
+      const v = Math.round(Number(raw));
+      if (!Number.isFinite(v) || v < 1 || v > 9999) {
+        input.focus();
+        toast(`Check the ${APPS[input.dataset.priceApp].name} price — numbers only`);
+        return;
+      }
+      entry[input.dataset.priceApp] = v;
+    }
+    if (Object.keys(APPS).every(a => entry[a] == null)) {
+      toast("Enter at least one price before saving");
+      return;
+    }
+    const all = priceStore.all;
+    all[key] = entry;
+    priceStore.save(all);
+    applyPrices();
+    render();
+    toast(`${CATALOG[key].product} — prices saved`);
   });
 
   // app selection for handoff

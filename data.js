@@ -6,7 +6,9 @@
 // null price = item currently unavailable on that app (PRD edge #9).
 // ---------------------------------------------------------------
 
-const PRICES_CHECKED = "13 Aug 2026, 9:12 am";
+// Date the base price snapshot below was taken (prices are NOT live — no
+// app offers them). Items you re-check in "Update prices" carry their own date.
+const PRICES_CHECKED_ON = "2026-08-13";
 
 const APPS = {
   zepto:     { name: "Zepto",     color: "#8b5cf6", searchUrl: q => `https://www.zeptonow.com/search?query=${encodeURIComponent(q)}` },
@@ -106,31 +108,33 @@ const CATALOG = {
   "spring-onion":  { product: "Spring Onion",                 size: "100 g",  prices: { zepto: 25,  blinkit: 22,  instamart: 28 } },
   cinnamon:        { product: "Cinnamon Powder",              size: "50 g",   prices: { zepto: 65,  blinkit: 62,  instamart: 68 } },
   // ---- added with the 36-dish expansion ----
-  lettuce:         { product: "Iceberg Lettuce",              size: "1 pc",   prices: { zepto: 45,  blinkit: 42,  instamart: 48 } },
-  cucumber:        { product: "Cucumber",                     size: "500 g",  prices: { zepto: 30,  blinkit: 28,  instamart: 32 } },
-  carrot:          { product: "Carrot (Orange)",              size: "500 g",  prices: { zepto: 35,  blinkit: 32,  instamart: 38 } },
-  broccoli:        { product: "Broccoli",                     size: "1 pc",   prices: { zepto: 65,  blinkit: 60,  instamart: 70 } },
-  zucchini:        { product: "Zucchini Green",               size: "1 pc",   prices: { zepto: 45,  blinkit: 42,  instamart: null } },
-  "bell-peppers":  { product: "Red & Yellow Bell Pepper",     size: "2 pc",   prices: { zepto: 79,  blinkit: 75,  instamart: 82 } },
-  "sweet-corn":    { product: "Frozen Sweet Corn",            size: "500 g",  prices: { zepto: 85,  blinkit: 80,  instamart: 88 } },
-  "french-beans":  { product: "French Beans",                 size: "250 g",  prices: { zepto: 30,  blinkit: 28,  instamart: 32 } },
-  mint:            { product: "Mint (Pudina)",                size: "100 g",  prices: { zepto: 15,  blinkit: 12,  instamart: 18 } },
-  banana:          { product: "Banana Robusta",               size: "6 pc",   prices: { zepto: 42,  blinkit: 40,  instamart: 45 } },
-  oats:            { product: "Quaker Oats",                  size: "500 g",  prices: { zepto: 99,  blinkit: 95,  instamart: 105 } },
-  honey:           { product: "Dabur Honey",                  size: "250 g",  prices: { zepto: 115, blinkit: 110, instamart: 120 } },
-  "peanut-butter": { product: "Pintola Peanut Butter",        size: "350 g",  prices: { zepto: 165, blinkit: 159, instamart: 170 } },
-  quinoa:          { product: "White Quinoa",                 size: "500 g",  prices: { zepto: 245, blinkit: 239, instamart: 255 } },
-  "moong-dal":     { product: "Moong Dal Yellow",             size: "500 g",  prices: { zepto: 78,  blinkit: 75,  instamart: 80 } },
-  "moong-sprouts": { product: "Moong Sprouts",                size: "200 g",  prices: { zepto: 30,  blinkit: 28,  instamart: null } },
-  "masoor-dal":    { product: "Masoor Dal",                   size: "500 g",  prices: { zepto: 72,  blinkit: 70,  instamart: 75 } },
-  tofu:            { product: "Firm Tofu",                    size: "200 g",  prices: { zepto: 85,  blinkit: 82,  instamart: 88 } },
-  mayonnaise:      { product: "Veeba Eggless Mayonnaise",     size: "250 g",  prices: { zepto: 75,  blinkit: 72,  instamart: 78 } },
-  "cheese-slices": { product: "Amul Cheese Slices",           size: "200 g",  prices: { zepto: 135, blinkit: 130, instamart: 140 } },
-  macaroni:        { product: "Macaroni Pasta",               size: "500 g",  prices: { zepto: 85,  blinkit: 80,  instamart: 90 } },
-  maida:           { product: "Maida (All-purpose Flour)",    size: "500 g",  prices: { zepto: 35,  blinkit: 32,  instamart: 38 } },
-  "baking-powder": { product: "Weikfield Baking Powder",      size: "100 g",  prices: { zepto: 45,  blinkit: 42,  instamart: 48 } },
-  "biryani-masala":{ product: "Everest Biryani Masala",       size: "50 g",   prices: { zepto: 55,  blinkit: 52,  instamart: 58 } },
-  "chilli-sauce":  { product: "Ching's Red Chilli Sauce",     size: "200 g",  prices: { zepto: 65,  blinkit: 62,  instamart: 68 } },
+  // estimated: prices are rough guesses, not yet checked in the apps. The app
+  // labels them "estimate" until they're checked in Update prices.
+  lettuce:         { product: "Iceberg Lettuce",              size: "1 pc",   prices: { zepto: 45,  blinkit: 42,  instamart: 48 }, estimated: true },
+  cucumber:        { product: "Cucumber",                     size: "500 g",  prices: { zepto: 30,  blinkit: 28,  instamart: 32 }, estimated: true },
+  carrot:          { product: "Carrot (Orange)",              size: "500 g",  prices: { zepto: 35,  blinkit: 32,  instamart: 38 }, estimated: true },
+  broccoli:        { product: "Broccoli",                     size: "1 pc",   prices: { zepto: 65,  blinkit: 60,  instamart: 70 }, estimated: true },
+  zucchini:        { product: "Zucchini Green",               size: "1 pc",   prices: { zepto: 45,  blinkit: 42,  instamart: null }, estimated: true },
+  "bell-peppers":  { product: "Red & Yellow Bell Pepper",     size: "2 pc",   prices: { zepto: 79,  blinkit: 75,  instamart: 82 }, estimated: true },
+  "sweet-corn":    { product: "Frozen Sweet Corn",            size: "500 g",  prices: { zepto: 85,  blinkit: 80,  instamart: 88 }, estimated: true },
+  "french-beans":  { product: "French Beans",                 size: "250 g",  prices: { zepto: 30,  blinkit: 28,  instamart: 32 }, estimated: true },
+  mint:            { product: "Mint (Pudina)",                size: "100 g",  prices: { zepto: 15,  blinkit: 12,  instamart: 18 }, estimated: true },
+  banana:          { product: "Banana Robusta",               size: "6 pc",   prices: { zepto: 42,  blinkit: 40,  instamart: 45 }, estimated: true },
+  oats:            { product: "Quaker Oats",                  size: "500 g",  prices: { zepto: 99,  blinkit: 95,  instamart: 105 }, estimated: true },
+  honey:           { product: "Dabur Honey",                  size: "250 g",  prices: { zepto: 115, blinkit: 110, instamart: 120 }, estimated: true },
+  "peanut-butter": { product: "Pintola Peanut Butter",        size: "350 g",  prices: { zepto: 165, blinkit: 159, instamart: 170 }, estimated: true },
+  quinoa:          { product: "White Quinoa",                 size: "500 g",  prices: { zepto: 245, blinkit: 239, instamart: 255 }, estimated: true },
+  "moong-dal":     { product: "Moong Dal Yellow",             size: "500 g",  prices: { zepto: 78,  blinkit: 75,  instamart: 80 }, estimated: true },
+  "moong-sprouts": { product: "Moong Sprouts",                size: "200 g",  prices: { zepto: 30,  blinkit: 28,  instamart: null }, estimated: true },
+  "masoor-dal":    { product: "Masoor Dal",                   size: "500 g",  prices: { zepto: 72,  blinkit: 70,  instamart: 75 }, estimated: true },
+  tofu:            { product: "Firm Tofu",                    size: "200 g",  prices: { zepto: 85,  blinkit: 82,  instamart: 88 }, estimated: true },
+  mayonnaise:      { product: "Veeba Eggless Mayonnaise",     size: "250 g",  prices: { zepto: 75,  blinkit: 72,  instamart: 78 }, estimated: true },
+  "cheese-slices": { product: "Amul Cheese Slices",           size: "200 g",  prices: { zepto: 135, blinkit: 130, instamart: 140 }, estimated: true },
+  macaroni:        { product: "Macaroni Pasta",               size: "500 g",  prices: { zepto: 85,  blinkit: 80,  instamart: 90 }, estimated: true },
+  maida:           { product: "Maida (All-purpose Flour)",    size: "500 g",  prices: { zepto: 35,  blinkit: 32,  instamart: 38 }, estimated: true },
+  "baking-powder": { product: "Weikfield Baking Powder",      size: "100 g",  prices: { zepto: 45,  blinkit: 42,  instamart: 48 }, estimated: true },
+  "biryani-masala":{ product: "Everest Biryani Masala",       size: "50 g",   prices: { zepto: 55,  blinkit: 52,  instamart: 58 }, estimated: true },
+  "chilli-sauce":  { product: "Ching's Red Chilli Sauce",     size: "200 g",  prices: { zepto: 65,  blinkit: 62,  instamart: 68 }, estimated: true },
 };
 
 // Ingredient entry: { key, qty } — key must exist in CATALOG.
