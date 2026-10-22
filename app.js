@@ -317,6 +317,7 @@ const ICONS = {
   ext: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
   cart: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h2.8l2.4 11.6a1.5 1.5 0 0 0 1.5 1.2h8.9a1.5 1.5 0 0 0 1.5-1.1L21.5 8H6.2"/>',
   check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   trash: '<path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="m6 7 1 12.5a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5L18 7"/>',
   minus: '<path d="M5 12h14"/>',
   plus: '<path d="M12 5v14"/><path d="M5 12h14"/>',
@@ -385,6 +386,59 @@ function tonightPicks(slot, limit = 6) {
 const haveLine = p => p.missing === 0
   ? "You have everything"
   : `You have ${p.have} of ${p.total} · buy ${p.missing}`;
+
+// ---------- guided shopping ----------
+
+// None of the three apps lets another app fill its cart, so FoodLit walks you
+// through the basket instead: it opens the chosen app searching for one item
+// at a time and remembers which ones you've added. Progress is kept per
+// recipe + app for this browser session, so it survives a trip out to the
+// app and back (or the page being reloaded while you were away).
+const shopStore = {
+  all() { try { return JSON.parse(sessionStorage.getItem("stc_shop") || "{}"); } catch { return {}; } },
+  get(key) { return new Set(this.all()[key] || []); },
+  set(key, done) {
+    const all = this.all();
+    all[key] = [...done];
+    try { sessionStorage.setItem("stc_shop", JSON.stringify(all)); } catch {}
+  },
+};
+
+// Everything the basket screen and its buttons need to agree on.
+function shopContext() {
+  const r = recipeById(state.recipeId);
+  const items = basketFor(r);
+  const cmp = compareApps(items);
+  const sel = state.selectedApp && cmp.perApp[state.selectedApp] ? state.selectedApp : cmp.cheapest;
+  const app = sel ? APPS[sel] : null;
+  const list = items.filter(it => it.ticked && it.mapped);
+  const key = `${r.id}|${sel}`;
+  return { r, items, cmp, sel, app, list, key, done: shopStore.get(key) };
+}
+
+const shopLabel = it => `${it.label}${it.packs > 1 ? ` × ${it.packs}` : ""}`;
+
+function shoppingListText({ r, app, list, items }) {
+  const n = servingsFor(r);
+  const extra = items.filter(it => it.ticked && !it.mapped);
+  return [
+    `${r.name} — ${n} ${n === 1 ? "person" : "people"}${app ? ` · ${app.name}` : ""}`,
+    ...list.map(it => `• ${shopLabel(it)}${it.size ? ` (${it.size})` : ""}`),
+    ...extra.map(it => `• ${it.label} (${it.qty})`),
+  ].join("\n");
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
+    // Older browsers / no permission: the textarea + execCommand fallback.
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch {}
+    ta.remove(); return ok;
+  }
+}
 
 // ---------- views ----------
 
@@ -716,6 +770,52 @@ function recipeView() {
     </div>`;
 }
 
+function shopPanel() {
+  const ctx = shopContext();
+  const { app, list, key, done } = ctx;
+  if (!app) return "";
+  const total = list.length;
+  const doneN = list.filter(it => done.has(it.index)).length;
+  const next = list.find(it => !done.has(it.index));
+  const open = it => `href="${app.searchUrl(it.label)}" target="_blank" rel="noopener" data-shop-open="${it.index}"`;
+  return `
+      <section class="panel shop" data-enter style="--c:${app.color}">
+        <div class="panel-head">
+          <h3>Shop on ${app.name}</h3>
+          <span class="sec-aux"><span data-roll="shop-done">${doneN}</span> of ${total} added</span>
+        </div>
+        <div class="shop-bar" aria-hidden="true"><span data-tween="shop-${key}" style="--v:${total ? (doneN / total).toFixed(3) : 0}"></span></div>
+        ${next ? `
+        <a class="shop-next" ${open(next)}>
+          <span class="shop-next-ic">${ic("cart")}</span>
+          <span class="shop-next-txt">
+            <span class="shop-next-lbl">${doneN ? "Next item" : "Start with"}</span>
+            <span class="shop-next-name">${esc(shopLabel(next))}</span>
+          </span>
+          <span class="shop-next-go">Open ${ic("ext")}</span>
+        </a>
+        <p class="fine left">Opens ${app.name} searching for this item. Tap <b>Add</b> there, then come back for the next one.</p>`
+        : `
+        <div class="shop-finished">${ic("check")}<span>All ${total} items added. Open your cart in ${app.name} to check out.</span></div>`}
+        <ul class="shop-list">
+          ${list.map(it => {
+            const d = done.has(it.index);
+            return `
+            <li class="shop-item ${d ? "done" : ""}">
+              <button class="shop-check" data-shop-toggle="${it.index}" aria-pressed="${d}" aria-label="${d ? "Mark as not added" : "Mark as added"}: ${esc(it.label)}">${ic("check")}</button>
+              <span class="shop-name">${esc(it.label)}<span class="muted">${it.size ? ` · ${it.size}` : ""}${it.packs > 1 ? ` × ${it.packs}` : ""}</span></span>
+              <a class="shop-open" ${open(it)} aria-label="Open ${esc(it.label)} in ${app.name}">${d ? "Again" : "Open"} ${ic("ext")}</a>
+            </li>`;
+          }).join("")}
+        </ul>
+        <div class="btn-row">
+          <button class="btn btn-outline grow" data-shop-copy>${ic("copy")}Copy shopping list</button>
+          ${doneN ? `<button class="btn btn-ghost" data-shop-reset>Start over</button>` : ""}
+        </div>
+        <p class="fine left">${app.name} doesn't let other apps fill its cart yet, so FoodLit opens each item for you.</p>
+      </section>`;
+}
+
 function basketView() {
   const r = recipeById(state.recipeId);
   const n = servingsFor(r);
@@ -725,7 +825,6 @@ function basketView() {
   const unmappedCount = items.filter(it => !it.mapped && it.ticked).length;
   const sel = state.selectedApp && cmp.perApp[state.selectedApp] ? state.selectedApp : cmp.cheapest;
   const selApp = sel ? APPS[sel] : null;
-  const handoffItems = items.filter(it => it.ticked && it.mapped);
   const saving = Math.max(0, Math.round((r.deliveryPrice - r.cookCost) * f));
   const maxTotal = Math.max(1, ...Object.values(cmp.perApp).map(d => d.total));
 
@@ -781,7 +880,7 @@ function basketView() {
                 <span class="app-bar"><span class="app-fill" data-tween="app-${appId}" style="--v:${(d.total / maxTotal).toFixed(3)}"></span></span>
                 <span class="app-note ${d.complete ? "" : "warn"}">
                   ${!d.complete ? `Missing: ${d.missing.map(esc).join(", ")}`
-                    : isSel ? "Selected for handoff"
+                    : isSel ? "Selected — shop below"
                     : cmp.cheapest && !isCheapest ? `+${fmt(d.total - cmp.perApp[cmp.cheapest].total)} vs ${APPS[cmp.cheapest].name}`
                     : "All items available"}
                 </span>
@@ -791,22 +890,10 @@ function basketView() {
         <p class="fine center">Prices last checked ${PRICES_CHECKED} · *excludes unavailable items</p>
       </section>
 
-      ${unmappedCount ? `<div class="note warn" data-enter>${ic("alert")}<span>${plural(unmappedCount, "item")} couldn't be auto-matched — search for ${unmappedCount > 1 ? "them" : "it"} manually after handoff.</span></div>` : ""}
+      ${unmappedCount ? `<div class="note warn" data-enter>${ic("alert")}<span>${plural(unmappedCount, "item")} couldn't be auto-matched — add ${unmappedCount > 1 ? "them" : "it"} yourself in the app.</span></div>` : ""}
 
       ${selApp ? `
-      <section class="panel" data-enter>
-        <div class="panel-head"><h3>Handoff to ${selApp.name}</h3><span class="sec-aux">~30s checkout</span></div>
-        <p class="fine left">Tap each item to open it pre-searched in ${selApp.name}, then check out there.</p>
-        <div class="handoffs">
-          ${handoffItems.map(it => `
-            <a class="handoff" href="${selApp.searchUrl(it.label)}" target="_blank" rel="noopener" style="--c:${selApp.color}">
-              <span class="handoff-ic">${ic("cart")}</span>
-              <span class="handoff-name">${esc(it.label)}${it.packs > 1 ? ` <b>× ${it.packs}</b>` : ""}</span>
-              <span class="handoff-go">Open ${ic("ext")}</span>
-            </a>`).join("")}
-        </div>
-        <p class="fine left">These apps don't accept orders from other apps yet, so you finish checkout in ${selApp.name}.</p>
-      </section>
+      ${shopPanel()}
       <section class="savings" data-enter>
         <span class="savings-ic">${ic("spark")}</span>
         <div>
@@ -947,6 +1034,30 @@ function historyView() {
       <p class="fine center">Every meal here is one you cooked instead of ordering.<br/>
       This log lives only on this device — export it to keep it safe.</p>
     </main>`;
+}
+
+// ---------- shopping list sheet ----------
+
+// Fallback when the browser won't let us copy: show the list, pre-selected,
+// with a Share button where the phone supports it (WhatsApp, Notes, …).
+function showListSheet(text) {
+  const wrap = sheetShell(`
+      <h3 class="sheet-title">${ic("copy")}Your shopping list</h3>
+      <p class="sheet-copy">Copying was blocked here, so select the text below${navigator.share ? " or share it" : ""}.</p>
+      <textarea class="list-text" readonly rows="${Math.min(12, text.split("\n").length + 1)}"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-ghost grow" data-close>Close</button>
+        ${navigator.share ? `<button class="btn btn-primary grow" data-share>Share list</button>` : ""}
+      </div>`);
+  const ta = wrap.querySelector(".list-text");
+  ta.value = text;
+  const close = Motion.sheet(wrap);
+  ta.focus(); ta.select();
+  wrap.querySelector("[data-close]").onclick = close;
+  const share = wrap.querySelector("[data-share]");
+  if (share) share.onclick = async () => {
+    try { await navigator.share({ title: "Shopping list", text }); close(); } catch {}
+  };
 }
 
 // ---------- settings sheet ----------
@@ -1343,6 +1454,30 @@ function bind() {
     store.setPantryQty(b.dataset.premove, 0);
     state.ticks = {};
     render();
+  });
+
+  // guided shopping: open marks the item added (the link itself opens the app)
+  $app.querySelectorAll("[data-shop-open]").forEach(a => a.addEventListener("click", () => {
+    const { key, done } = shopContext();
+    done.add(Number(a.dataset.shopOpen));
+    shopStore.set(key, done);
+    setTimeout(() => render(), 60); // after the new tab/app has opened
+  }));
+  $app.querySelectorAll("[data-shop-toggle]").forEach(b => b.onclick = () => {
+    const { key, done } = shopContext();
+    const i = Number(b.dataset.shopToggle);
+    done.has(i) ? done.delete(i) : done.add(i);
+    shopStore.set(key, done);
+    render();
+  });
+  $app.querySelectorAll("[data-shop-reset]").forEach(b => b.onclick = () => {
+    shopStore.set(shopContext().key, new Set());
+    render();
+  });
+  $app.querySelectorAll("[data-shop-copy]").forEach(b => b.onclick = async () => {
+    const text = shoppingListText(shopContext());
+    if (await copyText(text)) { toast("Shopping list copied — paste it anywhere"); return; }
+    showListSheet(text); // copying blocked (some phones / in-app browsers): show it instead
   });
 
   // app selection for handoff
