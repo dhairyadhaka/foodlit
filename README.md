@@ -29,10 +29,10 @@ then open http://localhost:4173 on your phone or browser (mobile-width works bes
 | PRD | Feature | How |
 |---|---|---|
 | P0-1 | Photo dish recognition | Claude vision (Haiku 4.5) called directly from the browser with your Anthropic API key (⚙️ Settings, stored in localStorage). Top-3 guesses matched to recipes by a specificity-ranked scorer (exact name/alias beats a loose substring), so "butter chicken" can't land on a chicken-steak recipe. Search fallback always shown — never a dead end. |
-| P0-2 | Recipe search & detail | Curated set of 33 dishes across 6 cuisines (name + aliases search), each with quantities, numbered steps, video link. |
-| — | Meal categories | "All day / 🌅 Breakfast (6) / ☀️ Lunch (22) / 🌙 Dinner (26)" tabs. A dish can belong to several (`meals: []` in `data.js`) — most Indian mains are lunch **and** dinner. Combines with cuisine and time; chip counts update to reflect the other active filters. Recipe screens show their meal slots. |
-| — | Cuisine categories | "Browse by cuisine" strip on home: All / 🇮🇳 Indian (21) / 🍝 Italian (3) / 🥩 Grills (2) / 🥢 Asian (3) / 🌮 Mexican (2) / 🍳 Continental (2). Combines with the time filter; typing a search resets to All so no match is hidden. Add a cuisine by appending to `CUISINES` in `data.js` and tagging recipes with its id. |
-| P0-3 | Ingredient → SKU mapping | Hand-curated catalog (70 SKUs) per PRD §8.3; unmapped items flagged amber (e.g. fresh coconut in Poha). |
+| P0-2 | Recipe search & detail | Curated set of 69 dishes across 7 cuisines (name + aliases search), each with quantities, numbered steps, video link. |
+| — | Meal categories | "Any meal / Breakfast (16) / Lunch (42) / Dinner (50)" tabs. A dish can belong to several (`meals: []` in `data.js`) — most Indian mains are lunch **and** dinner. Combines with cuisine and time; chip counts update to reflect the other active filters. Recipe screens show their meal slots. |
+| — | Cuisine categories | "Browse by cuisine" strip on home: All / Indian (33) / Italian (5) / Grills (5) / Asian (6) / Mexican (5) / Continental (9) / Salads & Bowls (6). Combines with the time filter; typing a search resets to All so no match is hidden. Add a cuisine by appending to `CUISINES` in `data.js` and tagging recipes with its id. |
+| P0-3 | Ingredient → SKU mapping | Hand-curated catalog (95 SKUs) per PRD §8.3; unmapped items flagged amber (e.g. fresh coconut in Poha). |
 | P0-4 | Cross-app price comparison | Per-basket totals for Zepto / Blinkit / Instamart, cheapest highlighted, "last checked" timestamp; apps missing an item are excluded from the crown (edge #9 — e.g. paneer is out of stock on Instamart). |
 | P0-5 | One-tap handoff | Deep links to each app's search page per item; checkout finishes in the partner app (no public ordering API — PRD §8.1). |
 | P0-6 | Pantry exclusions | Untick items you have; totals recalc instantly. Pantry staples (salt, oil, spices) start unticked. |

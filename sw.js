@@ -1,7 +1,7 @@
 // FoodLit service worker — network-first with cache fallback, so the
 // app always picks up fresh code when online but still opens offline.
-const CACHE = "stc-v18";
-const ASSETS = ["./", "./index.html", "./styles.css?v=18", "./app.js?v=18", "./motion.js?v=18", "./data.js?v=18", "./credits.js?v=18", "./manifest.webmanifest", "./favicon.ico", "./icon.svg", "./icon-180.png", "./icon-512.png",
+const CACHE = "stc-v19";
+const ASSETS = ["./", "./index.html", "./styles.css?v=19", "./app.js?v=19", "./motion.js?v=19", "./data.js?v=19", "./credits.js?v=19", "./manifest.webmanifest", "./favicon.ico", "./icon.svg", "./icon-180.png", "./icon-512.png",
   "./img/aglio-olio.jpg", "./img/aloo-gobi.jpg", "./img/aloo-paratha.jpg", "./img/baingan-bharta.jpg", "./img/bhindi-masala.jpg", "./img/butter-chicken.jpg", "./img/chicken-curry.jpg", "./img/chicken-quesadilla.jpg", "./img/chicken-steak.jpg", "./img/chilli-paneer.jpg", "./img/chole-masala.jpg", "./img/dal-makhani.jpg", "./img/dal-tadka.jpg", "./img/egg-bhurji.jpg", "./img/french-toast.jpg", "./img/grilled-fish.jpg", "./img/grilled-sandwich.jpg", "./img/hakka-noodles.jpg", "./img/kadhai-paneer.jpg", "./img/kadhi-pakora.jpg", "./img/matar-paneer.jpg", "./img/mushroom-alfredo.jpg", "./img/palak-paneer.jpg", "./img/paneer-butter-masala.jpg", "./img/paneer-tikka.jpg", "./img/poha.jpg", "./img/rajma-burrito-bowl.jpg", "./img/rajma.jpg", "./img/thai-green-curry.jpg", "./img/tomato-penne.jpg", "./img/upma.jpg", "./img/veg-pulao.jpg"];
 
 self.addEventListener("install", e => {

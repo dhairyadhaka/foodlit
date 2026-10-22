@@ -436,7 +436,10 @@ function topbar(title, backTo) {
 function cuisineThumb(id) {
   // "All" gets its own dish so it never repeats a cuisine's photo.
   const r = id === "all" ? recipeById("rajma-burrito-bowl") : RECIPES.find(x => x.cuisine === id && hasPhoto(x));
-  return r ? `<img src="img/${r.id}.jpg" alt="" loading="lazy" decoding="async" />` : "";
+  if (r) return `<img src="img/${r.id}.jpg" alt="" loading="lazy" decoding="async" />`;
+  // A cuisine with no photographed dish yet shows its emoji instead.
+  const c = CUISINES.find(x => x.id === id);
+  return c ? `<span class="thumb-emoji">${c.emoji}</span>` : "";
 }
 
 function homeView() {
