@@ -14,6 +14,17 @@ Photo → recipe → ingredients ordered at the cheapest price. Built from `Food
 
 **Backup:** ⚙️ Settings and the History screen both have **Export / Import**. Export writes `foodlit-backup-YYYY-MM-DD.json` (older `snap-to-cook` backups still import) (meals + pantry, **never** the API key) — on iOS it goes through the share sheet so you can Save to Files. Import validates and sanitises the file, then offers **Merge** (dedupes meals by name+date+amount, so restoring an old backup can't wipe newer entries) or **Replace**. Pantry keys not in this build's catalog are skipped and reported.
 
+**Meal planner + cookbook (`planner.js`):** opened from the 📅 button in the top bar.
+- **Week board:** Mon–Sun × Breakfast/Lunch/Dinner. Tap an empty slot to pick a dish; your cookbook dishes come first, then the best matches for that meal (fewest things to buy), and search covers everything. Tap a filled slot to change people, open the recipe, mark it cooked (this logs savings; unmarking removes the log), swap or remove it.
+- **Month view:** dots show planned and cooked days. Tap a day to jump to its week.
+- **Plan my week for me:** fills only the *empty* slots from today on. It picks dishes that suit the meal, prefers the fewest things to buy given your pantry, avoids repeats within the week, varies cuisine from the previous dinner, and nudges towards favourites. Undo restores the previous plan. On weekends it offers to plan next week.
+- **Groceries:** adds up every ingredient for the plan's remaining meals (amounts from `costs.js`), skips pantry items, and rounds to whole packs. You get the price across apps and the same guided "Shop on …" walkthrough as the basket. When no app has everything, it picks the one missing the fewest items.
+- **Savings forecast:** shown on the board ("₹6,224 kept from delivery if you cook this plan"), along with "Cooked x of y".
+- **Home:** "Today's plan" shows the next uncooked meal with **Start cooking**. Logging that dish from its basket ticks it off the plan.
+- **Cookbook:** ♡ Save and **Add to plan** on every recipe, plus personal notes on the recipe page. Cookbook dishes show your note.
+- **Storage:** everything is kept on the device (`stc_plan`, `stc_cookbook`) and included in backups. Merging fills empty slots and unions favourites.
+- **Share plan:** sends the week as text (WhatsApp, etc.).
+
 **Prices (not live):** none of the three apps offers live prices to other apps, so prices are a hand-kept snapshot.
 - **Base snapshot:** `data.js` holds the base prices, taken on `PRICES_CHECKED_ON` (13 Aug 2026).
 - **Estimates:** items marked `estimated: true` were never checked (the 25 added with the 36-dish expansion). The basket labels them "estimate".

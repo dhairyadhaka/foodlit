@@ -54,6 +54,8 @@ const store = {
       pantry: this.pantry,
       prices: priceStore.all,
       orderPrices: orderStore.all,
+      plan: planStore.all,
+      cookbook: cookbook.data,
     };
   },
 };
@@ -70,7 +72,7 @@ function parseBackup(text) {
   if (!d || typeof d !== "object") return { error: "That file isn't a FoodLit backup." };
   // Backups made before the rename say "snap-to-cook" — still ours.
   if (d.app && !["foodlit", "snap-to-cook"].includes(d.app)) return { error: `That backup is from "${String(d.app).slice(0, 20)}", not FoodLit.` };
-  if (!Array.isArray(d.meals) && !Array.isArray(d.pantry) && !d.prices) {
+  if (!Array.isArray(d.meals) && !Array.isArray(d.pantry) && !d.prices && !d.plan && !d.cookbook) {
     return { error: "No meals or pantry data found in that file." };
   }
   const meals = (Array.isArray(d.meals) ? d.meals : [])
@@ -105,7 +107,29 @@ function parseBackup(text) {
       if (recipeById(id) && Number.isFinite(+v) && +v > 0 && +v < 10000) orderPrices[id] = Math.round(+v);
     }
   }
-  return { meals, pantry, skipped, prices, orderPrices };
+  // Plan: real dates, known slots and dishes, 1–8 people.
+  const plan = {};
+  if (d.plan && typeof d.plan === "object") {
+    for (const [day, slots] of Object.entries(d.plan)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !slots || typeof slots !== "object") continue;
+      for (const [slot, e] of Object.entries(slots)) {
+        if (!SLOTS.includes(slot) || !e || !recipeById(e.id)) continue;
+        const entry = { id: e.id, serves: Math.min(8, Math.max(1, Math.round(+e.serves) || recipeById(e.id).serves)) };
+        if (e.cooked === true) entry.cooked = true;
+        if (typeof e.logged === "string") entry.logged = e.logged.slice(0, 200);
+        (plan[day] = plan[day] || {})[slot] = entry;
+      }
+    }
+  }
+  // Cookbook: known dishes only; notes are plain text, capped.
+  const cb = { favs: [], notes: {} };
+  if (d.cookbook && typeof d.cookbook === "object") {
+    if (Array.isArray(d.cookbook.favs)) cb.favs = [...new Set(d.cookbook.favs.filter(id => typeof id === "string" && recipeById(id)))];
+    if (d.cookbook.notes && typeof d.cookbook.notes === "object") {
+      for (const [id, t] of Object.entries(d.cookbook.notes)) if (recipeById(id) && typeof t === "string" && t.trim()) cb.notes[id] = t.slice(0, 1000);
+    }
+  }
+  return { meals, pantry, skipped, prices, orderPrices, plan, cookbook: cb };
 }
 
 const state = {
@@ -325,6 +349,14 @@ function compareApps(items) {
   return { perApp: result, cheapest, itemCount: active.length };
 }
 
+// Which app to shop on when you haven't picked one: the cheapest app that
+// has everything, or, if none does, the one missing the fewest items.
+function defaultApp(cmp) {
+  if (cmp.cheapest) return cmp.cheapest;
+  const ranked = Object.entries(cmp.perApp).sort((a, b) => a[1].missing.length - b[1].missing.length || a[1].total - b[1].total);
+  return ranked.length ? ranked[0][0] : null;
+}
+
 function cheapestCookCost(recipe) {
   const { perApp, cheapest } = compareApps(basketFor(recipe));
   if (cheapest) return perApp[cheapest].total;
@@ -387,7 +419,7 @@ function toast(msg) {
 }
 
 // Screen depth decides whether a navigation pushes forward or pops back.
-const DEPTH = { home: 0, pantry: 1, history: 1, identify: 1, prices: 1, recipe: 2, basket: 3 };
+const DEPTH = { home: 0, pantry: 1, history: 1, identify: 1, prices: 1, plan: 1, cookbook: 1, planlist: 2, recipe: 2, basket: 3 };
 let navDir = "forward";
 
 function go(view, extra = {}) {
@@ -407,6 +439,10 @@ const ICONS = {
   camera: '<path d="M14.5 4h-5L7.5 7H4.5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3.5"/>',
   basket: '<path d="M4.5 10h15l-1.6 8.4a2 2 0 0 1-2 1.6H8.1a2 2 0 0 1-2-1.6z"/><path d="M2.5 10h19"/><path d="m8 10 3-6"/><path d="m16 10-3-6"/><path d="M10 14v2.5"/><path d="M14 14v2.5"/>',
   chart: '<path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 6-6"/>',
+  calendar: '<rect x="3" y="4.5" width="18" height="16.5" rx="2.5"/><path d="M3 9.5h18"/><path d="M8 2.5v4"/><path d="M16 2.5v4"/><path d="M7.5 13.5h3"/><path d="M13.5 13.5h3"/><path d="M7.5 17h3"/>',
+  heart: '<path d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 4 4 7.5 4c2 0 3.4 1.1 4.5 2.6C13.1 5.1 14.5 4 16.5 4 20 4 22.4 7.6 21.2 11.1 19.5 15.9 12 20.5 12 20.5z"/>',
+  heartFill: '<path fill="currentColor" stroke="none" d="M12 20.5s-7.5-4.6-9.2-9.4C1.6 7.6 4 4 7.5 4c2 0 3.4 1.1 4.5 2.6C13.1 5.1 14.5 4 16.5 4 20 4 22.4 7.6 21.2 11.1 19.5 15.9 12 20.5 12 20.5z"/>',
+  share: '<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.6"/><path d="m8.2 13.2 7.6 4.6"/>',
   sliders: '<path d="M4 6h9"/><path d="M17 6h3"/><circle cx="15" cy="6" r="2"/><path d="M4 12h3"/><path d="M11 12h9"/><circle cx="9" cy="12" r="2"/><path d="M4 18h11"/><path d="M19 18h1"/><circle cx="17" cy="18" r="2"/>',
   chevL: '<path d="m15 18-6-6 6-6"/>',
   chevR: '<path d="m9 18 6-6-6-6"/>',
@@ -506,25 +542,26 @@ const shopStore = {
 
 // Everything the basket screen and its buttons need to agree on.
 function shopContext() {
+  if (state.view === "planlist") return planShopContext();
   const r = recipeById(state.recipeId);
   const items = basketFor(r);
   const cmp = compareApps(items);
-  const sel = state.selectedApp && cmp.perApp[state.selectedApp] ? state.selectedApp : cmp.cheapest;
+  const sel = state.selectedApp && cmp.perApp[state.selectedApp] ? state.selectedApp : defaultApp(cmp);
   const app = sel ? APPS[sel] : null;
-  const list = items.filter(it => it.ticked && it.mapped);
+  const list = items.filter(it => it.ticked && it.mapped).map(it => ({ ...it, shopId: String(it.index) }));
   const key = `${r.id}|${sel}`;
-  return { r, items, cmp, sel, app, list, key, done: shopStore.get(key) };
+  const n = servingsFor(r);
+  const extras = items.filter(it => it.ticked && !it.mapped).map(it => `${it.label} (${it.qty})`);
+  return { r, items, cmp, sel, app, list, key, done: shopStore.get(key), extras, title: `${r.name} — ${plural(n, "person", "people")}` };
 }
 
 const shopLabel = it => `${it.label}${it.packs > 1 ? ` × ${it.packs}` : ""}`;
 
-function shoppingListText({ r, app, list, items }) {
-  const n = servingsFor(r);
-  const extra = items.filter(it => it.ticked && !it.mapped);
+function shoppingListText({ title, app, list, extras = [] }) {
   return [
-    `${r.name} — ${n} ${n === 1 ? "person" : "people"}${app ? ` · ${app.name}` : ""}`,
+    `${title}${app ? ` · ${app.name}` : ""}`,
     ...list.map(it => `• ${shopLabel(it)}${it.size ? ` (${it.size})` : ""}`),
-    ...extra.map(it => `• ${it.label} (${it.qty})`),
+    ...extras.map(x => `• ${x}`),
   ].join("\n");
 }
 
@@ -550,6 +587,7 @@ function render(mode = "update", after) {
   const views = {
     home: homeView, identify: identifyView, recipe: recipeView,
     basket: basketView, pantry: pantryView, history: historyView, prices: pricesView,
+    plan: planView, planlist: planListView, cookbook: cookbookView,
   };
   const fresh = mode === "nav" || mode === "reveal" || mode === "boot";
   const paint = () => {
@@ -573,8 +611,9 @@ function topbar(title, backTo) {
         <span class="logo-text">food<span class="lit">lit</span></span>
       </a>
       <nav class="top-actions">
+        <button class="icon-btn" data-nav="plan" aria-label="Meal plan" title="Meal plan">${ic("calendar")}</button>
+        <button class="icon-btn" data-nav="cookbook" aria-label="My cookbook" title="My cookbook">${ic("heart")}</button>
         <button class="icon-btn" data-nav="pantry" aria-label="My pantry" title="My pantry">${ic("basket")}</button>
-        <button class="icon-btn" data-nav="history" aria-label="Cooking history" title="Cooking history">${ic("chart")}</button>
         <button class="icon-btn" data-settings aria-label="Settings" title="Settings">${ic("sliders")}</button>
       </nav>
     </header>`;
@@ -614,6 +653,7 @@ function homeView() {
   return `
     ${topbar()}
     <main class="page">
+      ${todayPlanCard()}
       <section class="tonight" aria-labelledby="tonight-title">
         <p class="hello" data-enter>${copy.hello}</p>
         <h2 class="tonight-title" id="tonight-title" data-enter>${copy.title}</h2>
@@ -800,6 +840,10 @@ function recipeView() {
             <span class="chip">${ic("flame")}${r.kcalPerServe} kcal / serve</span>
             <span class="chip ${cover.missing === 0 ? "chip--good" : ""}">${ic("basket")}${haveLine(cover)}</span>
           </div>
+          <div class="r-actions">
+            <button class="btn ${cookbook.isFav(r.id) ? "btn-fav-on" : "btn-outline"}" data-fav="${r.id}" aria-pressed="${cookbook.isFav(r.id)}">${ic(cookbook.isFav(r.id) ? "heartFill" : "heart")}${cookbook.isFav(r.id) ? "Saved" : "Save"}</button>
+            <button class="btn btn-outline" data-add-plan="${r.id}">${ic("calendar")}Add to plan</button>
+          </div>
         </div>
       </header>
       ${photoCredit(r)}
@@ -880,6 +924,11 @@ function recipeView() {
             <div class="panel-head"><h3>Method</h3><span class="sec-aux">${r.steps.length} steps</span></div>
             <ol class="steps">${r.steps.map((s, i) => `<li><span class="step-n">${i + 1}</span><p>${esc(s)}</p></li>`).join("")}</ol>
           </section>
+
+          <section class="panel notes">
+            <div class="panel-head"><h3>My notes</h3><span class="sec-aux">only you see these</span></div>
+            <textarea class="note-input" id="note-input" data-recipe="${r.id}" rows="3" placeholder="e.g. Less chilli, double the garlic, Mum's tip…">${esc(cookbook.note(r.id))}</textarea>
+          </section>
         </div>
       </div>
     </main>
@@ -888,14 +937,13 @@ function recipeView() {
     </div>`;
 }
 
-function shopPanel() {
-  const ctx = shopContext();
+function shopPanel(ctx = shopContext()) {
   const { app, list, key, done } = ctx;
   if (!app) return "";
   const total = list.length;
-  const doneN = list.filter(it => done.has(it.index)).length;
-  const next = list.find(it => !done.has(it.index));
-  const open = it => `href="${app.searchUrl(it.label)}" target="_blank" rel="noopener" data-shop-open="${it.index}"`;
+  const doneN = list.filter(it => done.has(it.shopId)).length;
+  const next = list.find(it => !done.has(it.shopId));
+  const open = it => `href="${app.searchUrl(it.label)}" target="_blank" rel="noopener" data-shop-open="${it.shopId}"`;
   return `
       <section class="panel shop" data-enter style="--c:${app.color}">
         <div class="panel-head">
@@ -917,10 +965,10 @@ function shopPanel() {
         <div class="shop-finished">${ic("check")}<span>All ${total} items added. Open your cart in ${app.name} to check out.</span></div>`}
         <ul class="shop-list">
           ${list.map(it => {
-            const d = done.has(it.index);
+            const d = done.has(it.shopId);
             return `
             <li class="shop-item ${d ? "done" : ""}">
-              <button class="shop-check" data-shop-toggle="${it.index}" aria-pressed="${d}" aria-label="${d ? "Mark as not added" : "Mark as added"}: ${esc(it.label)}">${ic("check")}</button>
+              <button class="shop-check" data-shop-toggle="${it.shopId}" aria-pressed="${d}" aria-label="${d ? "Mark as not added" : "Mark as added"}: ${esc(it.label)}">${ic("check")}</button>
               <span class="shop-name">${esc(it.label)}<span class="muted">${it.size ? ` · ${it.size}` : ""}${it.packs > 1 ? ` × ${it.packs}` : ""}</span></span>
               <a class="shop-open" ${open(it)} aria-label="Open ${esc(it.label)} in ${app.name}">${d ? "Again" : "Open"} ${ic("ext")}</a>
             </li>`;
@@ -1014,7 +1062,7 @@ function basketView() {
   const items = basketFor(r);
   const cmp = compareApps(items);
   const unmappedCount = items.filter(it => !it.mapped && it.ticked).length;
-  const sel = state.selectedApp && cmp.perApp[state.selectedApp] ? state.selectedApp : cmp.cheapest;
+  const sel = state.selectedApp && cmp.perApp[state.selectedApp] ? state.selectedApp : defaultApp(cmp);
   const selApp = sel ? APPS[sel] : null;
   const saving = savingOf(r, f);
   const maxTotal = Math.max(1, ...Object.values(cmp.perApp).map(d => d.total));
@@ -1232,9 +1280,9 @@ function historyView() {
 
 // Fallback when the browser won't let us copy: show the list, pre-selected,
 // with a Share button where the phone supports it (WhatsApp, Notes, …).
-function showListSheet(text) {
+function showListSheet(text, title = "Your shopping list") {
   const wrap = sheetShell(`
-      <h3 class="sheet-title">${ic("copy")}Your shopping list</h3>
+      <h3 class="sheet-title">${ic("copy")}${title}</h3>
       <p class="sheet-copy">Copying was blocked here, so select the text below${navigator.share ? " or share it" : ""}.</p>
       <textarea class="list-text" readonly rows="${Math.min(12, text.split("\n").length + 1)}"></textarea>
       <div class="btn-row">
@@ -1274,6 +1322,9 @@ function openSettings() {
       </div>
 
       <div class="sheet-sep"></div>
+      <div class="btn-row"><button class="btn btn-outline grow" data-open-history>${ic("chart")}Cooking history</button></div>
+
+      <div class="sheet-sep"></div>
       <h3 class="sheet-title small">Prices</h3>
       <p class="sheet-copy">Prices aren't live. Check your most-used items every few weeks to keep comparisons honest.</p>
       <div class="btn-row"><button class="btn btn-outline grow" data-open-prices>${ic("sliders")}Update prices</button></div>
@@ -1295,6 +1346,7 @@ function openSettings() {
     close();
     document.getElementById("import-input").click();
   };
+  wrap.querySelector("[data-open-history]").onclick = () => { close(); go("history"); };
   wrap.querySelector("[data-open-prices]").onclick = () => {
     close();
     go("prices", { pricesBack: state.view === "prices" ? "home" : state.view });
@@ -1376,6 +1428,16 @@ function confirmImport(parsed) {
     priceStore.save(prices);
     applyPrices();
     orderStore.save({ ...parsed.orderPrices, ...orderStore.all });
+    const plan = planStore.all;
+    for (const [day, slots] of Object.entries(parsed.plan || {})) {
+      for (const [slot, e] of Object.entries(slots)) if (!plan[day]?.[slot]) (plan[day] = plan[day] || {})[slot] = e;
+    }
+    planStore.save(plan);
+    const cb = cookbook.data;
+    cookbook.save({
+      favs: [...new Set([...cb.favs, ...(parsed.cookbook?.favs || [])])],
+      notes: { ...(parsed.cookbook?.notes || {}), ...cb.notes },
+    });
     close();
     state.ticks = {};
     go("history");
@@ -1388,6 +1450,8 @@ function confirmImport(parsed) {
     priceStore.save(parsed.prices || {});
     applyPrices();
     orderStore.save(parsed.orderPrices || {});
+    planStore.save(parsed.plan || {});
+    cookbook.save(parsed.cookbook || { favs: [], notes: {} });
     close();
     state.ticks = {};
     go("history");
@@ -1400,7 +1464,7 @@ function handleImportFile(file) {
   reader.onload = () => {
     const parsed = parseBackup(String(reader.result));
     if (parsed.error) { toast("⚠ " + parsed.error); return; }
-    if (!parsed.meals.length && !parsed.pantry.length && !Object.keys(parsed.prices || {}).length) { toast("⚠ That backup is empty."); return; }
+    if (!parsed.meals.length && !parsed.pantry.length && !Object.keys(parsed.prices || {}).length && !Object.keys(parsed.plan || {}).length && !(parsed.cookbook?.favs.length)) { toast("⚠ That backup is empty."); return; }
     confirmImport(parsed);
   };
   reader.onerror = () => toast("⚠ Couldn't read that file.");
@@ -1547,6 +1611,7 @@ function bindScrollers() {
 
 function bind() {
   bindScrollers();
+  bindPlanner();
   // navigation
   $app.querySelectorAll("[data-back]").forEach(b => b.onclick = () => go(b.dataset.back));
   $app.querySelectorAll("[data-nav]").forEach(b => b.onclick = () => go(b.dataset.nav));
@@ -1670,13 +1735,13 @@ function bind() {
   // guided shopping: open marks the item added (the link itself opens the app)
   $app.querySelectorAll("[data-shop-open]").forEach(a => a.addEventListener("click", () => {
     const { key, done } = shopContext();
-    done.add(Number(a.dataset.shopOpen));
+    done.add(a.dataset.shopOpen);
     shopStore.set(key, done);
     setTimeout(() => render(), 60); // after the new tab/app has opened
   }));
   $app.querySelectorAll("[data-shop-toggle]").forEach(b => b.onclick = () => {
     const { key, done } = shopContext();
-    const i = Number(b.dataset.shopToggle);
+    const i = b.dataset.shopToggle;
     done.has(i) ? done.delete(i) : done.add(i);
     shopStore.set(key, done);
     render();
@@ -1765,12 +1830,9 @@ function bind() {
     if (b.disabled) return;
     b.disabled = true;
     const r = recipeById(state.recipeId);
-    const f = factorFor(r);
-    const saved = savingOf(r, f);
-    store.addMeal({
-      name: r.name, emoji: r.emoji, saved, serves: servingsFor(r),
-      date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-    });
+    const meal = logCookedMeal(r, factorFor(r));
+    const saved = meal.saved;
+    markPlannedCooked(r.id, meal);
     b.classList.add("done");
     b.innerHTML = `${ic("check")}<span>Logged — nice cooking</span>`;
     Motion.confetti();
